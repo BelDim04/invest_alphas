@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Alphas Backtesting</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8" x-data="app()">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Investment Alphas Backtesting</h1>
+            <p class="text-gray-600">Test your trading strategies with historical data</p>
+        </header>
+
+        <!-- Instruments Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8" x-show="showInstrumentsList">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Available Instruments</h2>
+                <button 
+                    @click="showInstrumentsList = false" 
+                    class="text-gray-500 hover:text-gray-700"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ticker</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Currency</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Liquidity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="instrument in instruments" :key="instrument.figi">
+                            <tr class="border-t">
+                                <td class="px-6 py-4" x-text="instrument.ticker"></td>
+                                <td class="px-6 py-4" x-text="instrument.name"></td>
+                                <td class="px-6 py-4" x-text="instrument.currency"></td>
+                                <td class="px-6 py-4">
+                                    <span class="text-xs px-2 py-1 rounded" 
+                                          :class="instrument.liquidity_flag ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                                          x-text="instrument.liquidity_flag ? 'Liquid' : 'Illiquid'">
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Backtest Form -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Run Backtest</h2>
+            <form @submit.prevent="runBacktest()" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                        <input 
+                            type="date" 
+                            x-model="backtestForm.startDate"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            required
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">End Date</label>
+                        <input 
+                            type="date" 
+                            x-model="backtestForm.endDate"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Instruments</label>
+                    <div class="mt-1 relative">
+                        <button 
+                            type="button" 
+                            @click="showInstruments = !showInstruments"
+                            class="w-full bg-white border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <span x-text="selectedInstruments.length > 0 ? selectedInstruments.length + ' instruments selected' : 'Select instruments'"></span>
+                        </button>
+                        
+                        <div 
+                            x-show="showInstruments" 
+                            @click.away="showInstruments = false"
+                            class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm"
+                        >
+                            <div class="px-4 py-2 border-b border-gray-200">
+                                <input 
+                                    type="text" 
+                                    x-model="instrumentSearch"
+                                    placeholder="Search instruments..."
+                                    class="w-full px-2 py-1 border rounded"
+                                >
+                            </div>
+                            <template x-for="instrument in filteredInstruments" :key="instrument.figi">
+                                <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center justify-between"
+                                     @click="toggleInstrument(instrument)">
+                                    <div>
+                                        <span class="font-medium" x-text="instrument.ticker"></span>
+                                        <span class="text-gray-500 ml-2" x-text="instrument.name"></span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <span class="text-xs px-2 py-1 rounded" 
+                                              :class="instrument.liquidity_flag ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                                              x-text="instrument.liquidity_flag ? 'Liquid' : 'Illiquid'">
+                                        </span>
+                                        <input type="checkbox" class="ml-2" :checked="isSelected(instrument)">
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <button 
+                        type="button" 
+                        @click="showInstrumentsList = true"
+                        class="text-blue-600 hover:text-blue-800"
+                    >
+                        Show All Instruments
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                        :disabled="runningBacktest || selectedInstruments.length === 0"
+                    >
+                        <span x-text="runningBacktest ? 'Running...' : 'Run Backtest'"></span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Results -->
+            <div x-show="backtestResults" class="mt-8">
+                <h3 class="text-lg font-semibold mb-4">Results</h3>
+                
+                <!-- Portfolio Statistics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    <template x-for="(value, key) in backtestResults.statistics" :key="key">
+                        <div class="bg-white p-4 rounded-lg shadow">
+                            <h4 class="text-sm font-medium text-gray-500" x-text="key"></h4>
+                            <p class="text-2xl font-semibold" 
+                               x-text="typeof value === 'number' ? 
+                                   (key.includes('[%]') ? value.toFixed(2) + '%' : 
+                                    key.includes('Ratio') ? value.toFixed(2) : 
+                                    value) : value">
+                            </p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                instruments: [],
+                loadingInstruments: false,
+                runningBacktest: false,
+                backtestResults: [],
+                showInstruments: false,
+                showInstrumentsList: false,
+                instrumentSearch: '',
+                selectedInstruments: [],
+                backtestForm: {
+                    startDate: '',
+                    endDate: '',
+                },
+                
+                async init() {
+                    await this.loadInstruments();
+                },
+
+                get filteredInstruments() {
+                    return this.instruments.filter(instrument => 
+                        instrument.ticker.toLowerCase().includes(this.instrumentSearch.toLowerCase()) ||
+                        instrument.name.toLowerCase().includes(this.instrumentSearch.toLowerCase())
+                    );
+                },
+
+                isSelected(instrument) {
+                    return this.selectedInstruments.some(i => i.figi === instrument.figi);
+                },
+
+                toggleInstrument(instrument) {
+                    const index = this.selectedInstruments.findIndex(i => i.figi === instrument.figi);
+                    if (index === -1) {
+                        this.selectedInstruments.push(instrument);
+                    } else {
+                        this.selectedInstruments.splice(index, 1);
+                    }
+                },
+
+                async loadInstruments() {
+                    this.loadingInstruments = true;
+                    try {
+                        const response = await fetch('/api/v1/instruments');
+                        if (!response.ok) throw new Error('Failed to load instruments');
+                        this.instruments = await response.json();
+                    } catch (error) {
+                        alert('Error loading instruments: ' + error.message);
+                    } finally {
+                        this.loadingInstruments = false;
+                    }
+                },
+
+                async runBacktest() {
+                    this.runningBacktest = true;
+                    try {
+                        const response = await fetch('/api/v1/backtest', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                instruments: this.selectedInstruments.map(i => i.ticker),
+                                start_date: this.backtestForm.startDate,
+                                end_date: this.backtestForm.endDate
+                            })
+                        });
+                        
+                        if (!response.ok) throw new Error('Failed to run backtest');
+                        this.backtestResults = await response.json();
+                    } catch (error) {
+                        alert('Error running backtest: ' + error.message);
+                    } finally {
+                        this.runningBacktest = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html> 
