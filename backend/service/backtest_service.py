@@ -11,9 +11,9 @@ from schema.models import BacktestRequest, Instrument
 from tinkoff.invest.schemas import RealExchange
 
 class BacktestService:
-    def __init__(self):
-        self.storage = RedisStorage()
-        self.tinkoff_client = TinkoffClient()
+    def __init__(self, tinkoff_client: TinkoffClient = None, redis_storage: RedisStorage = None):
+        self.tinkoff_client = tinkoff_client or TinkoffClient()
+        self.storage = redis_storage or RedisStorage()
 
     async def get_instruments(self) -> List[Instrument]:
         """Get all MOEX instruments"""
@@ -21,25 +21,24 @@ class BacktestService:
         if cached_instruments:
             return [i for i in cached_instruments if i.real_exchange == RealExchange.REAL_EXCHANGE_MOEX]
         
-        instruments = self.tinkoff_client.get_instruments()
+        instruments = await self.tinkoff_client.get_instruments()
         await self.storage.set_instruments(instruments)
         return [i for i in instruments if i.real_exchange == RealExchange.REAL_EXCHANGE_MOEX]
 
     async def run_backtest(self, request: BacktestRequest) -> Dict[str, Any]:
         """Run backtest for selected instruments"""
         # Get historical data for each instrument
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=365*5)  # 5 years of data
-        
         prices_data = {}
         for ticker in request.instruments:
-            figi = self.tinkoff_client.get_figi_by_ticker(ticker)
-            data = self.tinkoff_client.get_stock_data(figi, start_date, end_date)
+            figi = await self.tinkoff_client.get_figi_by_ticker(ticker)
+            data = await self.tinkoff_client.get_stock_data(figi, request.start_date, request.end_date)
             prices_data[ticker] = data
+        
+        print(prices_data)
 
         # Calculate alpha signals
         alpha_signals = self._calculate_alpha_signals(prices_data)
-        # alpha_signals = self._neutralize_weights(alpha_signals)
+        #alpha_signals = self._neutralize_weights(alpha_signals)
 
         # Create portfolio
         prices = pd.DataFrame({
@@ -58,6 +57,7 @@ class BacktestService:
 
         # Generate portfolio statistics
         stats = portfolio.stats()
+        print(stats)
 
         return {
             "statistics": stats.to_dict()
@@ -81,6 +81,7 @@ class BacktestService:
             
             alpha_signals[stock_name] = alpha
         
+        print(alpha_signals)
         return pd.DataFrame(alpha_signals)
 
     def _neutralize_weights(self, weights: pd.DataFrame) -> pd.DataFrame:

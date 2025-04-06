@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional
 import os
 from datetime import datetime, timezone
-from tinkoff.invest import Client, CandleInterval
+from tinkoff.invest import AsyncClient, CandleInterval
 from tinkoff.invest.schemas import InstrumentExchangeType, RealExchange
 from tinkoff.invest import InstrumentStatus
 import pandas as pd
@@ -15,17 +15,17 @@ class TinkoffClient:
             raise ValueError("TINKOFF_TOKEN environment variable is not set")
         self._ticker_to_figi: Dict[str, str] = {}
 
-    def get_instruments(self) -> List[Instrument]:
-        with Client(self.token) as client:
-            shares = client.instruments.shares(
+    async def get_instruments(self) -> List[Instrument]:
+        async with AsyncClient(self.token) as client:
+            shares = (await client.instruments.shares(
                 instrument_status=InstrumentStatus.INSTRUMENT_STATUS_BASE,
                 instrument_exchange=InstrumentExchangeType.INSTRUMENT_EXCHANGE_UNSPECIFIED
-            ).instruments
+            )).instruments
 
-            futures = client.instruments.futures(
+            futures = (await client.instruments.futures(
                 instrument_status=InstrumentStatus.INSTRUMENT_STATUS_BASE,
                 instrument_exchange=InstrumentExchangeType.INSTRUMENT_EXCHANGE_UNSPECIFIED
-            ).instruments
+            )).instruments
 
             # Combine shares and futures
             instruments = shares + futures
@@ -50,22 +50,22 @@ class TinkoffClient:
                 if instrument.real_exchange == RealExchange.REAL_EXCHANGE_MOEX
             ]
 
-    def get_figi_by_ticker(self, ticker: str) -> str:
+    async def get_figi_by_ticker(self, ticker: str) -> str:
         """Get FIGI by ticker from the cached mapping"""
         if not self._ticker_to_figi:
             # If mapping is empty, fetch instruments to populate it
-            self.get_instruments()
+            await self.get_instruments()
         
         figi = self._ticker_to_figi.get(ticker)
         if not figi:
             raise ValueError(f"Ticker {ticker} not found")
         return figi
 
-    def get_stock_data(self, figi: str, from_date: datetime, to_date: datetime, 
+    async def get_stock_data(self, figi: str, from_date: datetime, to_date: datetime, 
                       interval: CandleInterval = CandleInterval.CANDLE_INTERVAL_DAY) -> pd.DataFrame:
         """Get historical stock data for a given FIGI"""
-        with Client(self.token) as client:
-            candles = client.market_data.get_candles(
+        async with AsyncClient(self.token) as client:
+            candles = await client.market_data.get_candles(
                 figi=figi,
                 from_=from_date,
                 to=to_date,
