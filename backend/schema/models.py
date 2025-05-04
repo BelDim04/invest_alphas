@@ -11,6 +11,7 @@ class Instrument(BaseModel):
     real_exchange: RealExchange
     liquidity_flag: Optional[bool] = None
     basic_asset: Optional[str] = None
+    lot_size: int
 
 class BacktestRequest(BaseModel):
     instruments: List[str]
@@ -27,6 +28,29 @@ class BacktestResult(BaseModel):
 class BacktestResponse(BaseModel):
     results: List[BacktestResult]
 
+class ForwardTestRequest(BaseModel):
+    instruments: List[str]
+
 class Error(BaseModel):
     error: str
-    message: str 
+    message: str
+
+# Alpha-related schemas
+class AlphaBase(BaseModel):
+    alpha: str
+
+class AlphaCreate(AlphaBase):
+    pass
+
+class AlphaUpdate(AlphaBase):
+    pass
+
+class AlphaResponse(AlphaBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AlphaListResponse(BaseModel):
+    alphas: List[AlphaResponse] 

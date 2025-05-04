@@ -1,7 +1,6 @@
 from functools import wraps
 from fastapi import HTTPException
 from typing import Callable, Any, Optional
-import redis
 from datetime import datetime, timedelta
 import json
 import logging
