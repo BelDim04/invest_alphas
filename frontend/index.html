@@ -7,6 +7,9 @@
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8" x-data="app()">
@@ -35,6 +38,7 @@
                     
                     <div 
                         x-show="showUserMenu" 
+                        x-cloak
                         @click.away="showUserMenu = false"
                         class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10"
                     >
@@ -50,7 +54,9 @@
         </header>
 
         <!-- Tinkoff API Token Modal -->
-        <div x-show="showTinkoffTokenModal" x-cloak class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+        <div x-show="showTinkoffTokenModal" 
+             x-cloak
+             class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg p-6 max-w-md w-full">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold">Tinkoff API Token Settings</h3>
@@ -105,7 +111,9 @@
         </div>
 
         <!-- Instruments Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8" x-show="showInstrumentsList">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8" 
+             x-show="showInstrumentsList"
+             x-cloak>
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Available Instruments</h2>
                 <button 
@@ -185,6 +193,7 @@
                         
                         <div 
                             x-show="showInstruments" 
+                            x-cloak
                             @click.away="showInstruments = false"
                             class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm"
                         >
@@ -328,6 +337,7 @@
                         
                         <div 
                             x-show="showForwardInstruments" 
+                            x-cloak
                             @click.away="showForwardInstruments = false"
                             class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm"
                         >
