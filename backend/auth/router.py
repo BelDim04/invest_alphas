@@ -6,7 +6,7 @@ from functools import partial
 from pydantic import BaseModel
 
 from storage.db import get_db, Database
-from auth.db import UserDB
+from auth.db import UserDB, get_user_db
 from auth.models import User, UserCreate, UserUpdate, Token
 from auth.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -18,6 +18,7 @@ from auth.security import (
 )
 from utils.decorators import handle_errors
 from client.client_cache import clear_client_cache
+from client.tinkoff_client import AsyncSandboxClient
 
 # Create auth router
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -25,11 +26,6 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 # Model for Tinkoff token update
 class TinkoffTokenUpdate(BaseModel):
     token: str
-
-# Dependency for UserDB
-def get_user_db(db: Database = Depends(get_db)):
-    """User DB dependency"""
-    return UserDB(db)
 
 # Create a dependency to properly inject UserDB into get_current_user
 async def get_current_user_with_db(
@@ -249,6 +245,17 @@ async def update_tinkoff_token(
     user_db: UserDB = Depends(get_user_db)
 ):
     """Update the Tinkoff API token for the current user"""
+    # Validate token by making a test API call
+    try:
+        async with AsyncSandboxClient(token_update.token) as client:
+            # Try to get accounts as a simple validation
+            await client.users.get_accounts()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid Tinkoff API token: {str(e)}"
+        )
+    
     # Create a UserUpdate object with just the token field
     user_update = UserUpdate(tinkoff_token=token_update.token)
     
@@ -257,7 +264,10 @@ async def update_tinkoff_token(
     
     # Check if update was successful
     if not updated_user:
-        raise HTTPException(status_code=500, detail="Failed to update Tinkoff token")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update Tinkoff token"
+        )
     
     # Clear the client cache for this user
     clear_client_cache(current_user["id"])

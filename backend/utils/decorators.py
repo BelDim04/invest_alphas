@@ -18,6 +18,10 @@ def handle_errors(func: Callable) -> Callable:
     async def wrapper(*args, **kwargs) -> Any:
         try:
             return await func(*args, **kwargs)
+        except HTTPException as e:
+            # Pass through HTTP exceptions (like 400 Bad Request) without changing them
+            logger.error(f"HTTP exception in {func.__name__}: {e.status_code}: {e.detail}")
+            raise
         except ValueError as e:
             logger.error(f"Validation error in {func.__name__}: {str(e)}\n{traceback.format_exc()}")
             raise HTTPException(status_code=400, detail=str(e))

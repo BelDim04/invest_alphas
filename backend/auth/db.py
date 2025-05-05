@@ -8,6 +8,7 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from fastapi import Depends
 
 # Load or generate encryption key for API tokens
 # In production, this should be stored in a secure key management service
@@ -71,49 +72,54 @@ class UserDB:
         """Get a user by username"""
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
-                'SELECT id, username, email, full_name, hashed_password, disabled, tinkoff_token, created_at FROM users WHERE username = $1',
+                'SELECT id, username, email, full_name, hashed_password, disabled, created_at FROM users WHERE username = $1',
                 username
             )
             if not row:
                 return None
-                
-            # Convert row to dict and decrypt token
-            user_dict = dict(row)
-            if user_dict.get('tinkoff_token'):
-                user_dict['tinkoff_token'] = decrypt_token(user_dict['tinkoff_token'])
-            return user_dict
+            return dict(row)
 
     async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Get a user by email"""
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
-                'SELECT id, username, email, full_name, hashed_password, disabled, tinkoff_token, created_at FROM users WHERE email = $1',
+                'SELECT id, username, email, full_name, hashed_password, disabled, created_at FROM users WHERE email = $1',
                 email
             )
             if not row:
                 return None
-                
-            # Convert row to dict and decrypt token
-            user_dict = dict(row)
-            if user_dict.get('tinkoff_token'):
-                user_dict['tinkoff_token'] = decrypt_token(user_dict['tinkoff_token'])
-            return user_dict
+            return dict(row)
 
     async def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get a user by ID"""
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
-                'SELECT id, username, email, full_name, hashed_password, disabled, tinkoff_token, created_at FROM users WHERE id = $1',
+                'SELECT id, username, email, full_name, hashed_password, disabled, created_at FROM users WHERE id = $1',
                 user_id
             )
             if not row:
                 return None
-                
-            # Convert row to dict and decrypt token
-            user_dict = dict(row)
-            if user_dict.get('tinkoff_token'):
-                user_dict['tinkoff_token'] = decrypt_token(user_dict['tinkoff_token'])
-            return user_dict
+            return dict(row)
+
+    async def get_tinkoff_token(self, user_id: int) -> Optional[str]:
+        """
+        Get the Tinkoff API token for a user.
+        This is the only method that should access the token directly.
+        
+        Args:
+            user_id: User ID to get token for
+            
+        Returns:
+            str: Decrypted token if exists, None otherwise
+        """
+        async with self.db.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                'SELECT tinkoff_token FROM users WHERE id = $1',
+                user_id
+            )
+            if not row or not row['tinkoff_token']:
+                return None
+            return decrypt_token(row['tinkoff_token'])
 
     async def create_user(self, user: UserCreate) -> Dict[str, Any]:
         """Create a new user"""
@@ -221,15 +227,11 @@ class UserDB:
         """List all users"""
         async with self.db.pool.acquire() as conn:
             rows = await conn.fetch(
-                'SELECT id, username, email, full_name, disabled, tinkoff_token, created_at FROM users ORDER BY created_at DESC'
+                'SELECT id, username, email, full_name, disabled, created_at FROM users ORDER BY created_at DESC'
             )
-            
-            # Convert rows to dicts and decrypt tokens
-            users = []
-            for row in rows:
-                user_dict = dict(row)
-                if user_dict.get('tinkoff_token'):
-                    user_dict['tinkoff_token'] = decrypt_token(user_dict['tinkoff_token'])
-                users.append(user_dict)
-                
-            return users 
+            return [dict(row) for row in rows] 
+
+# Dependency for UserDB
+def get_user_db(db: Database = Depends(get_db)):
+    """User DB dependency"""
+    return UserDB(db)

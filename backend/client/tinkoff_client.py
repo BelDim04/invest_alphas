@@ -305,12 +305,26 @@ class TinkoffClient:
         return portfolio_history
 
 # Dependency injection for tinkoff client with user-specific token
-async def get_tinkoff_client(current_user: Dict[str, Any] = None):
+async def get_tinkoff_client(
+    current_user: Dict[str, Any] = None,
+    user_token: str = None
+):
     """
     Dependency provider for the TinkoffClient with user-specific token.
     
     This creates a new client for each user (or reuses an existing one)
-    with their specific token.
+    with their specific token. The token is passed securely through the
+    dependency chain and is never exposed to the frontend.
+    
+    Args:
+        current_user: Current authenticated user
+        user_token: User's Tinkoff API token (retrieved securely from database)
+        
+    Returns:
+        TinkoffClient: Client instance with user's token
+        
+    Raises:
+        HTTPException: If user is not authenticated or token is not set
     """
     if not current_user:
         raise HTTPException(
@@ -319,7 +333,6 @@ async def get_tinkoff_client(current_user: Dict[str, Any] = None):
         )
         
     user_id = current_user.get("id")
-    user_token = current_user.get("tinkoff_token")
     
     # Check if user has set their token
     if not user_token:
@@ -336,6 +349,20 @@ async def get_tinkoff_client(current_user: Dict[str, Any] = None):
     # Create a new client instance with the user's token
     try:
         client = TinkoffClient(token=user_token)
+        
+        # Validate token by making a simple API call
+        try:
+            # Attempt a simple API call to validate the token
+            async with AsyncSandboxClient(user_token) as api_client:
+                await api_client.users.get_accounts()
+        except Exception as validate_error:
+            logger.error(f"Invalid Tinkoff token: {str(validate_error)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Tinkoff API token. Please check your token and update it in your profile."
+            )
+            
+        # Token is valid, cache the client
         add_client_to_cache(user_id, client)
         return client
     except Exception as e:
@@ -343,4 +370,4 @@ async def get_tinkoff_client(current_user: Dict[str, Any] = None):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error initializing Tinkoff client: {str(e)}"
-        ) 
+        )

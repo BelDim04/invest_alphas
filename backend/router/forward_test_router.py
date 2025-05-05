@@ -5,9 +5,8 @@ import asyncio
 import logging
 from schema.models import ForwardTestRequest
 from service.forward_test_service import ForwardTestService
-from client.tinkoff_client import get_tinkoff_client, TinkoffClient
+from client.tinkoff_client import TinkoffClient
 from utils.decorators import handle_errors
-from auth.router import get_current_user_with_db
 from utils.auth_deps import create_auth_client_dependency
 
 # Configure logging

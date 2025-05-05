@@ -482,11 +482,6 @@
                     } catch (error) {
                         console.error("Error initializing data:", error);
                     }
-                    
-                    // Initialize Tinkoff token from user profile if available
-                    if (this.user && this.user.tinkoff_token) {
-                        this.tinkoffToken = this.user.tinkoff_token;
-                    }
                 },
 
                 // Authentication methods
@@ -539,26 +534,48 @@
                 // Simple function to safely fetch data without throwing errors
                 async safeFetch(url, options = {}) {
                     try {
+                        const token = localStorage.getItem('auth_token');
+                        const tokenType = localStorage.getItem('token_type');
+                        
+                        if (!token || !tokenType) {
+                            console.warn('No auth token found, redirecting to login');
+                            this.logout();
+                            return { error: true, status: 401, message: 'Not authenticated' };
+                        }
+
+                        // Create default headers
+                        const defaultHeaders = {
+                            'Authorization': `${tokenType} ${token}`,
+                            'Content-Type': 'application/json'
+                        };
+
+                        // Merge headers, preserving Authorization
+                        const headers = {
+                            ...defaultHeaders,
+                            ...(options.headers || {})
+                        };
+
                         const defaultOptions = {
-                            headers: {
-                                'Authorization': `Bearer ${this.authToken}`
-                            },
+                            headers,
                             redirect: 'follow'
                         };
                         
-                        const response = await fetch(url, { ...defaultOptions, ...options });
+                        const response = await fetch(url, { ...defaultOptions, ...options, headers });
+                        
+                        if (response.status === 401) {
+                            console.warn('Authentication failed, redirecting to login');
+                            this.logout();
+                            return { error: true, status: 401, message: 'Authentication failed' };
+                        }
                         
                         if (!response.ok) {
-                            console.warn(`API call to ${url} failed with status ${response.status}`);
-                            
-                            // Never show token modal for API errors
-                            if (response.status === 400 && 
-                                response.statusText && 
-                                response.statusText.toLowerCase().includes('token')) {
-                                console.warn("Token issue detected, but not showing modal");
-                            }
-                            
-                            return { error: true, status: response.status, data: null };
+                            const errorData = await response.json().catch(() => ({}));
+                            return { 
+                                error: true, 
+                                status: response.status, 
+                                message: errorData.detail || response.statusText,
+                                data: null 
+                            };
                         }
                         
                         const data = await response.json();
@@ -773,18 +790,14 @@
                         },
                         body: JSON.stringify({ token: this.tinkoffToken })
                     });
+
+                    this.tinkoffToken = ''; // Clear the token from memory
                     
                     if (!result.error) {
-                        // Show success message
                         this.tokenUpdateSuccess = true;
                         this.tokenUpdateError = '';
-                        
-                        // Reload user profile to get updated token
-                        await this.loadUserProfile();
-                        
-                        // Close modal and reload instruments immediately
                         this.showTinkoffTokenModal = false;
-                        this.loadInstruments();
+                        await this.loadInstruments();
                     } else {
                         this.tokenUpdateError = result.message || 'Failed to update Tinkoff token';
                         this.tokenUpdateSuccess = false;

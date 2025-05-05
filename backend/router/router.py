@@ -2,10 +2,9 @@ from fastapi import APIRouter, Depends, Security
 from typing import List, Dict, Any
 
 from schema.models import Instrument
-from client.tinkoff_client import get_tinkoff_client, TinkoffClient
+from client.tinkoff_client import TinkoffClient
 from service.backtest_service import BacktestService
 from utils.decorators import handle_errors
-from auth.router import get_current_user_with_db
 from utils.auth_deps import create_auth_client_dependency
 
 # Main router with common endpoints
