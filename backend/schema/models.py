@@ -17,6 +17,7 @@ class BacktestRequest(BaseModel):
     instruments: List[str]
     start_date: datetime
     end_date: datetime
+    alpha_id: Optional[int] = None
 
 class BacktestResult(BaseModel):
     instrument: str
@@ -53,4 +54,4 @@ class AlphaResponse(AlphaBase):
         from_attributes = True
 
 class AlphaListResponse(BaseModel):
-    alphas: List[AlphaResponse] 
+    alphas: List[AlphaResponse]

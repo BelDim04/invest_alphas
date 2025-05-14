@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException
+from utils.alpha_calculator import validate_formula
 from storage.db import Database
 
 class AlphaService:
@@ -7,6 +8,11 @@ class AlphaService:
         self.db = db
 
     async def create_alpha(self, alpha: str) -> Dict[str, Any]:
+        # Validate formula before saving
+        try:
+            validate_formula(alpha)
+        except (SyntaxError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid formula: {e}")
         try:
             alpha_id = await self.db.create_alpha(alpha)
             return await self.get_alpha(alpha_id)
@@ -26,6 +32,11 @@ class AlphaService:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def update_alpha(self, alpha_id: int, alpha: str) -> Dict[str, Any]:
+        # Validate formula before updating
+        try:
+            validate_formula(alpha)
+        except (SyntaxError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid formula: {e}")
         success = await self.db.update_alpha(alpha_id, alpha)
         if not success:
             raise HTTPException(status_code=404, detail="Alpha not found")
@@ -36,4 +47,4 @@ class AlphaService:
         success = await self.db.delete_alpha(alpha_id)
         if not success:
             raise HTTPException(status_code=404, detail="Alpha not found")
-        return alpha 
+        return alpha
