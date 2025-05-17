@@ -20,11 +20,11 @@
                     <h1 class="text-3xl font-bold text-gray-800">Investment Alphas Backtesting</h1>
                     <p class="text-gray-600">Test your trading strategies with historical data</p>
                 </div>
-                
+
                 <!-- User profile dropdown -->
                 <div class="relative">
-                    <button 
-                        @click="showUserMenu = !showUserMenu" 
+                    <button
+                        @click="showUserMenu = !showUserMenu"
                         class="flex items-center space-x-2 bg-white rounded-full p-2 hover:bg-gray-50"
                     >
                         <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
@@ -32,12 +32,12 @@
                         </div>
                         <span x-text="user?.username || 'User'" class="font-medium text-gray-700"></span>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a 1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                         </svg>
                     </button>
-                    
-                    <div 
-                        x-show="showUserMenu" 
+
+                    <div
+                        x-show="showUserMenu"
                         x-cloak
                         @click.away="showUserMenu = false"
                         class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10"
@@ -54,7 +54,7 @@
         </header>
 
         <!-- Tinkoff API Token Modal -->
-        <div x-show="showTinkoffTokenModal" 
+        <div x-show="showTinkoffTokenModal"
              x-cloak
              class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg p-6 max-w-md w-full">
@@ -66,7 +66,7 @@
                         </svg>
                     </button>
                 </div>
-                
+
                 <div class="mb-4">
                     <p class="text-sm text-gray-600 mb-2">
                         Enter your Tinkoff Investments API token. This allows the application to trade on your behalf.
@@ -77,27 +77,27 @@
                     <div x-show="tokenUpdateError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" x-text="tokenUpdateError">
                     </div>
                 </div>
-                
+
                 <form @submit.prevent="updateTinkoffToken">
                     <div class="mb-4">
                         <label for="tinkoff_token" class="block text-sm font-medium text-gray-700 mb-1">API Token</label>
-                        <input 
-                            type="password" 
-                            id="tinkoff_token" 
+                        <input
+                            type="password"
+                            id="tinkoff_token"
                             x-model="tinkoffToken"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         >
                     </div>
-                    
+
                     <div class="flex justify-end space-x-3">
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             @click="showTinkoffTokenModal = false"
                             class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                         >
                             Cancel
                         </button>
-                        <button 
+                        <button
                             type="submit"
                             class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             :disabled="updatingToken"
@@ -111,13 +111,13 @@
         </div>
 
         <!-- Instruments Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8" 
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8"
              x-show="showInstrumentsList"
              x-cloak>
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Available Instruments</h2>
-                <button 
-                    @click="showInstrumentsList = false" 
+                <button
+                    @click="showInstrumentsList = false"
                     class="text-gray-500 hover:text-gray-700"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -125,7 +125,7 @@
                     </svg>
                 </button>
             </div>
-            
+
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead>
@@ -143,7 +143,7 @@
                                 <td class="px-6 py-4" x-text="instrument.name"></td>
                                 <td class="px-6 py-4" x-text="instrument.currency"></td>
                                 <td class="px-6 py-4">
-                                    <span class="text-xs px-2 py-1 rounded" 
+                                    <span class="text-xs px-2 py-1 rounded"
                                           :class="instrument.liquidity_flag ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
                                           x-text="instrument.liquidity_flag ? 'Liquid' : 'Illiquid'">
                                     </span>
@@ -162,8 +162,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Start Date</label>
-                        <input 
-                            type="date" 
+                        <input
+                            type="date"
                             x-model="backtestForm.startDate"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
@@ -171,8 +171,8 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">End Date</label>
-                        <input 
-                            type="date" 
+                        <input
+                            type="date"
                             x-model="backtestForm.endDate"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             required
@@ -183,23 +183,23 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Instruments</label>
                     <div class="mt-1 relative">
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             @click="showInstruments = !showInstruments"
                             class="w-full bg-white border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         >
                             <span x-text="selectedInstruments.length > 0 ? selectedInstruments.length + ' instruments selected' : 'Select instruments'"></span>
                         </button>
-                        
-                        <div 
-                            x-show="showInstruments" 
+
+                        <div
+                            x-show="showInstruments"
                             x-cloak
                             @click.away="showInstruments = false"
                             class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm"
                         >
                             <div class="px-4 py-2 border-b border-gray-200">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     x-model="instrumentSearch"
                                     placeholder="Search instruments..."
                                     class="w-full px-2 py-1 border rounded"
@@ -213,7 +213,7 @@
                                         <span class="text-gray-500 ml-2" x-text="instrument.name"></span>
                                     </div>
                                     <div class="flex items-center">
-                                        <span class="text-xs px-2 py-1 rounded" 
+                                        <span class="text-xs px-2 py-1 rounded"
                                               :class="instrument.liquidity_flag ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
                                               x-text="instrument.liquidity_flag ? 'Liquid' : 'Illiquid'">
                                         </span>
@@ -226,15 +226,15 @@
                 </div>
 
                 <div class="flex justify-between items-center">
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         @click="showInstrumentsList = true"
                         class="text-blue-600 hover:text-blue-800"
                     >
                         Show All Instruments
                     </button>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                         :disabled="runningBacktest || selectedInstruments.length === 0"
                     >
@@ -246,17 +246,17 @@
             <!-- Results -->
             <div x-show="backtestResults" class="mt-8">
                 <h3 class="text-lg font-semibold mb-4">Results</h3>
-                
+
                 <!-- Portfolio Statistics -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                     <template x-for="(value, key) in backtestResults.statistics" :key="key">
                         <div class="bg-white p-4 rounded-lg shadow">
                             <h4 class="text-sm font-medium text-gray-500" x-text="key"></h4>
-                            <p class="text-2xl font-semibold" 
-                               x-text="typeof value === 'number' ? 
-                                   (key.includes('[%]') ? value.toFixed(2) + '%' : 
-                                    key.includes('Ratio') ? value.toFixed(2) : 
-                                    value) : value">
+                            <p class="text-2xl font-semibold"
+                               x-text="typeof value === 'number' ?
+                                    (key.includes('[%]') ? value.toFixed(2) + '%' :
+                                     key.includes('Ratio') ? value.toFixed(2) :
+                                     value) : value">
                             </p>
                         </div>
                     </template>
@@ -267,12 +267,12 @@
         <!-- Alphas Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mt-8">
             <h2 class="text-xl font-semibold mb-4">Manage Alphas</h2>
-            
+
             <!-- Create Alpha Form -->
             <form @submit.prevent="createAlpha()" class="space-y-4 mb-8">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">New Alpha</label>
-                    <textarea 
+                    <textarea
                         x-model="newAlpha"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-3"
                         rows="4"
@@ -281,8 +281,8 @@
                     ></textarea>
                 </div>
                 <div class="flex justify-end">
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                     >
                         Create Alpha
@@ -301,13 +301,13 @@
                                 <p class="text-sm text-gray-500 mt-2" x-text="'Created: ' + new Date(alpha.created_at).toLocaleString()"></p>
                             </div>
                             <div class="flex space-x-2 ml-4">
-                                <button 
+                                <button
                                     @click="editAlpha(alpha)"
                                     class="text-blue-600 hover:text-blue-800"
                                 >
                                     Edit
                                 </button>
-                                <button 
+                                <button
                                     @click="deleteAlpha(alpha.id)"
                                     class="text-red-600 hover:text-red-800"
                                 >
@@ -327,23 +327,23 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Instruments</label>
                     <div class="mt-1 relative">
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             @click="showForwardInstruments = !showForwardInstruments"
                             class="w-full bg-white border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         >
                             <span x-text="selectedForwardInstruments.length > 0 ? selectedForwardInstruments.length + ' instruments selected' : 'Select instruments'"></span>
                         </button>
-                        
-                        <div 
-                            x-show="showForwardInstruments" 
+
+                        <div
+                            x-show="showForwardInstruments"
                             x-cloak
                             @click.away="showForwardInstruments = false"
                             class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm"
                         >
                             <div class="px-4 py-2 border-b border-gray-200">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     x-model="forwardInstrumentSearch"
                                     placeholder="Search instruments..."
                                     class="w-full px-2 py-1 border rounded"
@@ -357,7 +357,7 @@
                                         <span class="text-gray-500 ml-2" x-text="instrument.name"></span>
                                     </div>
                                     <div class="flex items-center">
-                                        <span class="text-xs px-2 py-1 rounded" 
+                                        <span class="text-xs px-2 py-1 rounded"
                                               :class="instrument.liquidity_flag ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
                                               x-text="instrument.liquidity_flag ? 'Liquid' : 'Illiquid'">
                                         </span>
@@ -370,16 +370,16 @@
                 </div>
 
                 <div class="flex justify-end space-x-4">
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         @click="stopForwardTest()"
                         x-show="isForwardTestRunning"
                         class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                     >
                         Stop Forward Test
                     </button>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                         :disabled="isForwardTestRunning || selectedForwardInstruments.length === 0"
                     >
@@ -391,17 +391,17 @@
             <!-- Forward Test Status -->
             <div x-show="forwardTestStatus" class="mt-4">
                 <div class="flex items-center space-x-2">
-                    <div class="w-3 h-3 rounded-full" 
+                    <div class="w-3 h-3 rounded-full"
                          :class="isForwardTestRunning ? 'bg-green-500' : 'bg-red-500'">
                     </div>
                     <span x-text="forwardTestStatus"></span>
                 </div>
-                
+
                 <!-- Portfolio History Table -->
                 <div x-show="portfolioHistory.length > 0" class="mt-8">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold">Portfolio History</h3>
-                        <button 
+                        <button
                             @click="fetchPortfolioHistory()"
                             class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                             :disabled="!isForwardTestRunning"
@@ -409,7 +409,7 @@
                             Refresh
                         </button>
                     </div>
-                    
+
                     <div class="overflow-x-auto">
                         <table class="min-w-full bg-white">
                             <thead>
@@ -455,7 +455,9 @@
                 backtestForm: {
                     startDate: '',
                     endDate: '',
+                    expression: ''
                 },
+                forwardExpression: '',
                 showForwardInstruments: false,
                 forwardInstrumentSearch: '',
                 selectedForwardInstruments: [],
@@ -474,17 +476,17 @@
                 tokenUpdateSuccess: false,
                 tokenUpdateError: '',
                 tinkoffToken: '',
-                
+
                 async init() {
                     // Explicitly ensure token modal is closed
                     this.showTinkoffTokenModal = false;
-                    
+
                     // Check if user is logged in
                     this.checkAuth();
-                    
+
                     // Explicitly ensure token modal is closed again after auth
                     this.showTinkoffTokenModal = false;
-                    
+
                     // Attempt to load data without showing popups
                     try {
                         await this.loadInstruments();
@@ -498,7 +500,7 @@
                 checkAuth() {
                     const token = localStorage.getItem('auth_token');
                     const tokenType = localStorage.getItem('token_type');
-                    
+
                     if (token && tokenType) {
                         this.authToken = token;
                         this.isLoggedIn = true;
@@ -509,10 +511,10 @@
                         window.location.href = '/login.html';
                     }
                 },
-                
+
                 async loadUserProfile() {
                     const result = await this.safeFetch('/api/v1/auth/me');
-                    
+
                     if (!result.error) {
                         this.user = result.data;
                     } else {
@@ -522,7 +524,7 @@
                 },
 
                 get filteredInstruments() {
-                    return this.instruments.filter(instrument => 
+                    return this.instruments.filter(instrument =>
                         instrument.ticker.toLowerCase().includes(this.instrumentSearch.toLowerCase()) ||
                         instrument.name.toLowerCase().includes(this.instrumentSearch.toLowerCase())
                     );
@@ -546,7 +548,7 @@
                     try {
                         const token = localStorage.getItem('auth_token');
                         const tokenType = localStorage.getItem('token_type');
-                        
+
                         if (!token || !tokenType) {
                             console.warn('No auth token found, redirecting to login');
                             this.logout();
@@ -569,25 +571,25 @@
                             headers,
                             redirect: 'follow'
                         };
-                        
+
                         const response = await fetch(url, { ...defaultOptions, ...options, headers });
-                        
+
                         if (response.status === 401) {
                             console.warn('Authentication failed, redirecting to login');
                             this.logout();
                             return { error: true, status: 401, message: 'Authentication failed' };
                         }
-                        
+
                         if (!response.ok) {
                             const errorData = await response.json().catch(() => ({}));
-                            return { 
-                                error: true, 
-                                status: response.status, 
+                            return {
+                                error: true,
+                                status: response.status,
                                 message: errorData.detail || response.statusText,
-                                data: null 
+                                data: null
                             };
                         }
-                        
+
                         const data = await response.json();
                         return { error: false, data };
                     } catch (error) {
@@ -595,23 +597,23 @@
                         return { error: true, message: error.message, data: null };
                     }
                 },
-                
+
                 async loadInstruments() {
                     this.loadingInstruments = true;
                     const result = await this.safeFetch('/api/v1/instruments');
-                    
+
                     if (!result.error) {
                         this.instruments = result.data;
                     } else {
                         this.instruments = [];
                     }
-                    
+
                     this.loadingInstruments = false;
                 },
-                
+
                 async loadAlphas() {
                     const result = await this.safeFetch('/api/v1/alphas');
-                    
+
                     if (!result.error) {
                         this.alphas = result.data.alphas || [];
                     } else {
@@ -621,7 +623,7 @@
 
                 async runBacktest() {
                     this.runningBacktest = true;
-                    
+
                     const result = await this.safeFetch('/api/v1/backtest', {
                         method: 'POST',
                         headers: {
@@ -631,21 +633,22 @@
                         body: JSON.stringify({
                             instruments: this.selectedInstruments.map(i => i.ticker),
                             start_date: this.backtestForm.startDate,
-                            end_date: this.backtestForm.endDate
+                            end_date: this.backtestForm.endDate,
+                            expression: this.backtestForm.expression
                         })
                     });
-                    
+
                     if (!result.error) {
                         this.backtestResults = result.data;
                     } else {
                         alert('Error running backtest: ' + (result.message || 'Unknown error'));
                     }
-                    
+
                     this.runningBacktest = false;
                 },
 
                 get filteredForwardInstruments() {
-                    return this.instruments.filter(instrument => 
+                    return this.instruments.filter(instrument =>
                         instrument.ticker.toLowerCase().includes(this.forwardInstrumentSearch.toLowerCase()) ||
                         instrument.name.toLowerCase().includes(this.forwardInstrumentSearch.toLowerCase())
                     );
@@ -665,22 +668,23 @@
                 },
 
                 async startForwardTest() {
-                    const result = await this.safeFetch('/api/v1/forward/start', {
+                    const result = await this.safeFetch('/api/v1/forward/start',  {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${this.authToken}`
                         },
                         body: JSON.stringify({
-                            instruments: this.selectedForwardInstruments.map(i => i.ticker)
+                            instruments: this.selectedForwardInstruments.map(i => i.ticker),
+                            expression: this.forwardExpression
                         })
                     });
-                    
+
                     if (!result.error) {
                         this.currentAccountId = result.data.account_id;
                         this.isForwardTestRunning = true;
                         this.forwardTestStatus = `Forward test running with sandbox account ${result.data.account_id}`;
-                        
+
                         // Initial fetch of portfolio history
                         await this.fetchPortfolioHistory();
                     } else {
@@ -692,7 +696,7 @@
                     const result = await this.safeFetch(`/api/v1/forward/stop?account_id=${this.currentAccountId}`, {
                         method: 'POST'
                     });
-                    
+
                     if (!result.error) {
                         this.isForwardTestRunning = false;
                         this.forwardTestStatus = 'Forward test stopped';
@@ -708,9 +712,9 @@
 
                 async fetchPortfolioHistory() {
                     if (!this.currentAccountId) return;
-                    
+
                     const result = await this.safeFetch(`/api/v1/forward/history/${this.currentAccountId}`);
-                    
+
                     if (!result.error) {
                         this.portfolioHistory = result.data.history;
                     } else {
@@ -723,7 +727,7 @@
                         alert('Please enter an alpha formula');
                         return;
                     }
-                    
+
                     const result = await this.safeFetch('/api/v1/alphas', {
                         method: 'POST',
                         headers: {
@@ -731,7 +735,7 @@
                         },
                         body: JSON.stringify({ alpha: this.newAlpha })
                     });
-                    
+
                     if (!result.error) {
                         await this.loadAlphas();
                         this.newAlpha = '';
@@ -743,7 +747,7 @@
                 async editAlpha(alpha) {
                     const updatedAlpha = prompt('Edit alpha formula:', alpha.alpha);
                     if (updatedAlpha === null || updatedAlpha.trim() === '') return;
-                    
+
                     const result = await this.safeFetch(`/api/v1/alphas/${alpha.id}`, {
                         method: 'PUT',
                         headers: {
@@ -751,7 +755,7 @@
                         },
                         body: JSON.stringify({ alpha: updatedAlpha })
                     });
-                    
+
                     if (!result.error) {
                         await this.loadAlphas();
                     } else {
@@ -761,11 +765,11 @@
 
                 async deleteAlpha(alphaId) {
                     if (!confirm('Are you sure you want to delete this alpha?')) return;
-                    
+
                     const result = await this.safeFetch(`/api/v1/alphas/${alphaId}`, {
                         method: 'DELETE'
                     });
-                    
+
                     if (!result.error) {
                         await this.loadAlphas();
                     } else {
@@ -788,11 +792,11 @@
                         this.tokenUpdateError = "Please enter a valid Tinkoff API token";
                         return;
                     }
-                    
+
                     this.updatingToken = true;
                     this.tokenUpdateSuccess = false;
                     this.tokenUpdateError = '';
-                    
+
                     const result = await this.safeFetch('/api/v1/auth/tinkoff', {
                         method: 'POST',
                         headers: {
@@ -802,7 +806,7 @@
                     });
 
                     this.tinkoffToken = ''; // Clear the token from memory
-                    
+
                     if (!result.error) {
                         this.tokenUpdateSuccess = true;
                         this.tokenUpdateError = '';
@@ -812,11 +816,11 @@
                         this.tokenUpdateError = result.message || 'Failed to update Tinkoff token';
                         this.tokenUpdateSuccess = false;
                     }
-                    
+
                     this.updatingToken = false;
                 }
             }
         }
     </script>
 </body>
-</html> 
+</html>

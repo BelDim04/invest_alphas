@@ -9,6 +9,8 @@ from client.tinkoff_client import TinkoffClient
 from schema.models import BacktestRequest, Instrument
 from tinkoff.invest.schemas import RealExchange
 from utils.alpha_calculator import calculate_alpha1, neutralize_weights
+from utils.expression_parser import ExpressionParser
+
 
 class BacktestService:
     def __init__(self, tinkoff_client: TinkoffClient = None):
@@ -27,12 +29,24 @@ class BacktestService:
             figi = await self.tinkoff_client.get_figi_by_ticker(ticker)
             data = await self.tinkoff_client.get_stock_data(figi, request.start_date, request.end_date)
             prices_data[ticker] = data
-        
+
         print(prices_data)
 
         # Calculate alpha signals
-        alpha_signals = self._calculate_alpha_signals(prices_data)
-        #alpha_signals = neutralize_weights(alpha_signals)
+        if request.expression:
+            parser = ExpressionParser()
+            expr = parser.parse(request.expression)
+            signals_dict = {}
+
+            for ticker, df in prices_data.items():
+                context = {col: df[col] for col in df.columns if col != 'time'}
+                series = expr.evaluate(context)
+                signals_dict[ticker] = series
+            alpha_signals = pd.DataFrame(signals_dict)
+        else:
+            alpha_signals = self._calculate_alpha_signals(prices_data)
+        # Нейтрализация весов
+        alpha_signals = neutralize_weights(alpha_signals)
 
         # Create portfolio
         prices = pd.DataFrame({
@@ -59,10 +73,10 @@ class BacktestService:
 
     def _calculate_alpha_signals(self, stock_data: Dict[str, pd.DataFrame]) -> pd.DataFrame:
         """Calculate alpha signals for each stock"""
-        alpha_signals = {}
-        
+        alpha_signals: Dict[str, pd.Series] = {}
+
         for stock_name, df in stock_data.items():
             alpha_signals[stock_name] = calculate_alpha1(df)
-        
+
         print(alpha_signals)
         return pd.DataFrame(alpha_signals)

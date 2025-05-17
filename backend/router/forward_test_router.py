@@ -42,6 +42,7 @@ async def start_forward_test(
     service = ForwardTestService(
         account_id=account_id,
         target_stocks=request.instruments,
+        expression=request.expression,
         tinkoff_client=client
     )
     

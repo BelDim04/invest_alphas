@@ -16,13 +16,16 @@ from tinkoff.invest import (
 )
 from tinkoff.invest.schemas import InstrumentStatus, InstrumentExchangeType
 from schema.models import Instrument
+from utils.expression_parser import ExpressionParser
+
 
 logger = logging.getLogger(__name__)
 
 class ForwardTestService:
     INITIAL_BALANCE = 1000000  # Initial balance in RUB
     
-    def __init__(self, account_id: str, target_stocks: List[str], tinkoff_client: Optional[TinkoffClient] = None):
+    def __init__(self, account_id: str, target_stocks: List[str], tinkoff_client: Optional[TinkoffClient] = None,
+                 expression: Optional[str] = None):
         self.account_id = account_id
         self.target_stocks = target_stocks
         self.client = tinkoff_client or TinkoffClient()
@@ -34,6 +37,8 @@ class ForwardTestService:
         self.is_running = False
         self.target_instruments: Dict[str, Instrument] = {}
         self.start_date = None
+        self.expression = expression
+
 
     async def initialize(self):
         """Initialize the service and get necessary data"""
@@ -86,11 +91,20 @@ class ForwardTestService:
     def calculate_alpha_signals(self) -> Dict[str, float]:
         """Calculate alpha signals for all stocks"""
         alpha_signals = {}
-        
-        for stock_name, df in self.prices_data.items():
-            alpha = calculate_alpha1(df)
-            alpha_signals[stock_name] = alpha.iloc[-1]  # Get latest signal
-        
+
+        if self.expression:
+            parser = ExpressionParser()
+            expr = parser.parse(self.expression)
+
+            for ticker, df in self.prices_data.items():
+                context = {col: df[col] for col in df.columns if col != 'time'}
+                series = expr.evaluate(context)
+                alpha_signals[ticker] = series.iloc[-1]
+        else:
+            for ticker, df in self.prices_data.items():
+                alpha = calculate_alpha1(df)
+                alpha_signals[ticker] = alpha.iloc[-1]
+
         # Convert to DataFrame and neutralize
         alpha_df = pd.DataFrame([alpha_signals])
         neutralized_alpha = neutralize_weights(alpha_df).iloc[0]
