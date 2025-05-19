@@ -1,6 +1,8 @@
 services:
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
     # Don't expose backend ports to host - only accessible within Docker network
     environment:
       - TINKOFF_TOKEN=${TINKOFF_TOKEN}
@@ -11,6 +13,8 @@ services:
       - POSTGRES_DB=alphas_db
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
+    volumes:
+      - static_files:/app/static
     networks:
       # Custom internal network for backend communication only
       internal-network:
@@ -45,6 +49,7 @@ services:
       - ./frontend:/usr/share/nginx/html
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      - static_files:/usr/share/nginx/html/static
     depends_on:
       - backend
     networks:
@@ -63,3 +68,4 @@ networks:
 
 volumes:
   postgres_data:
+  static_files:

@@ -76,4 +76,5 @@ db = Database()
 # Dependency to get database instance
 async def get_db():
     """Dependency provider for the Database instance"""
+    await db.connect()  # Ensure database is connected
     return db 

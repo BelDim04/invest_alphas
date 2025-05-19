@@ -181,6 +181,20 @@
                 </div>
 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700">Select Alpha</label>
+                    <select
+                        x-model="backtestForm.alphaId"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        @change="updateBacktestExpression"
+                    >
+                        <option value="">Select an alpha...</option>
+                        <template x-for="alpha in alphas" :key="alpha.id">
+                            <option :value="alpha.id" x-text="alpha.alpha"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div>
                     <label class="block text-sm font-medium text-gray-700">Instruments</label>
                     <div class="mt-1 relative">
                         <button
@@ -248,18 +262,36 @@
                 <h3 class="text-lg font-semibold mb-4">Results</h3>
 
                 <!-- Portfolio Statistics -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 mb-8">
                     <template x-for="(value, key) in backtestResults.statistics" :key="key">
-                        <div class="bg-white p-4 rounded-lg shadow">
-                            <h4 class="text-sm font-medium text-gray-500" x-text="key"></h4>
-                            <p class="text-2xl font-semibold"
-                               x-text="typeof value === 'number' ?
-                                    (key.includes('[%]') ? value.toFixed(2) + '%' :
-                                     key.includes('Ratio') ? value.toFixed(2) :
-                                     value) : value">
-                            </p>
+                        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                            <span class="text-sm text-gray-600" x-text="formatStatName(key)"></span>
+                            <span class="text-sm font-medium" x-text="formatStatValue(value, key)"></span>
                         </div>
                     </template>
+                </div>
+
+                <!-- Plots -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <template x-for="(plot, name) in backtestResults.plots" :key="name">
+                        <div class="bg-white p-4 rounded-lg shadow">
+                            <h4 class="text-sm font-medium text-gray-500 mb-2" x-text="formatPlotName(name)"></h4>
+                            <img :src="'data:image/png;base64,' + plot" class="w-full" />
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Download Report Button -->
+                <div x-show="backtestResults.report_url" class="bg-white p-4 rounded-lg shadow">
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Detailed Analysis Report</h4>
+                    <a :href="backtestResults.report_url" 
+                       target="_blank"
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Report
+                    </a>
                 </div>
             </div>
         </div>
@@ -324,6 +356,20 @@
         <div class="bg-white rounded-lg shadow-md p-6 mt-8">
             <h2 class="text-xl font-semibold mb-4">Forward Test</h2>
             <form @submit.prevent="startForwardTest()" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Select Alpha</label>
+                    <select
+                        x-model="forwardTestForm.alphaId"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        @change="updateForwardTestExpression"
+                    >
+                        <option value="">Select an alpha...</option>
+                        <template x-for="alpha in alphas" :key="alpha.id">
+                            <option :value="alpha.id" x-text="alpha.alpha"></option>
+                        </template>
+                    </select>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Instruments</label>
                     <div class="mt-1 relative">
@@ -455,6 +501,11 @@
                 backtestForm: {
                     startDate: '',
                     endDate: '',
+                    alphaId: '',
+                    expression: ''
+                },
+                forwardTestForm: {
+                    alphaId: '',
                     expression: ''
                 },
                 forwardExpression: '',
@@ -634,6 +685,7 @@
                             instruments: this.selectedInstruments.map(i => i.ticker),
                             start_date: this.backtestForm.startDate,
                             end_date: this.backtestForm.endDate,
+                            alpha_id: this.backtestForm.alphaId,
                             expression: this.backtestForm.expression
                         })
                     });
@@ -676,7 +728,8 @@
                         },
                         body: JSON.stringify({
                             instruments: this.selectedForwardInstruments.map(i => i.ticker),
-                            expression: this.forwardExpression
+                            alpha_id: this.forwardTestForm.alphaId,
+                            expression: this.forwardTestForm.expression
                         })
                     });
 
@@ -818,8 +871,64 @@
                     }
 
                     this.updatingToken = false;
+                },
+
+                async updateBacktestExpression() {
+                    if (this.backtestForm.alphaId) {
+                        const alpha = this.alphas.find(a => a.id === this.backtestForm.alphaId);
+                        if (alpha) {
+                            this.backtestForm.expression = alpha.alpha;
+                        }
+                    }
+                },
+
+                async updateForwardTestExpression() {
+                    if (this.forwardTestForm.alphaId) {
+                        const alpha = this.alphas.find(a => a.id === this.forwardTestForm.alphaId);
+                        if (alpha) {
+                            this.forwardTestForm.expression = alpha.alpha;
+                        }
+                    }
                 }
             }
+        }
+
+        function formatStatName(key) {
+            const names = {
+                'total_return': 'Total Return',
+                'annual_return': 'Annual Return',
+                'volatility': 'Volatility',
+                'sharpe_ratio': 'Sharpe Ratio',
+                'sortino_ratio': 'Sortino Ratio',
+                'max_drawdown': 'Max Drawdown',
+                'var_95': 'Value at Risk (95%)',
+                'cvar_95': 'Conditional VaR (95%)',
+                'alpha': 'Alpha',
+                'beta': 'Beta',
+                'information_ratio': 'Information Ratio'
+            };
+            return names[key] || key;
+        }
+
+        function formatStatValue(value, key) {
+            if (typeof value !== 'number') return value;
+            
+            if (key.includes('ratio') || key.includes('alpha') || key.includes('beta')) {
+                return value.toFixed(2);
+            } else if (key.includes('return') || key.includes('drawdown') || key.includes('var')) {
+                return (value * 100).toFixed(2) + '%';
+            } else {
+                return value.toFixed(4);
+            }
+        }
+
+        function formatPlotName(name) {
+            const names = {
+                'cumulative_returns': 'Cumulative Returns',
+                'drawdown': 'Drawdown Analysis',
+                'rolling_beta': 'Rolling Beta'
+            };
+            return names[name] || name;
         }
     </script>
 </body>

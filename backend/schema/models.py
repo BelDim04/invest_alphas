@@ -15,9 +15,9 @@ class Instrument(BaseModel):
 
 class BacktestRequest(BaseModel):
     instruments: List[str]
+    alpha_id: int
     start_date: datetime
     end_date: datetime
-    expression: Optional[str] = None
 
 class BacktestResult(BaseModel):
     instrument: str
@@ -31,7 +31,7 @@ class BacktestResponse(BaseModel):
 
 class ForwardTestRequest(BaseModel):
     instruments: List[str]
-    expression: Optional[str] = None
+    alpha_id: int
 
 class Error(BaseModel):
     error: str

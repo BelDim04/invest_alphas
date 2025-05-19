@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from router.router import router as common_router
 from router.alpha_router import router as alpha_router
 from router.backtest_router import router as backtest_router
@@ -8,6 +9,7 @@ from router.forward_test_router import router as forward_test_router
 from auth.router import router as auth_router
 from storage.db import db
 from auth.utils import create_initial_admin
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,6 +18,12 @@ async def lifespan(app: FastAPI):
     
     # Initialize auth system
     await create_initial_admin()
+    
+    # Create static directory if it doesn't exist
+    os.makedirs("static/reports", exist_ok=True)
+    
+    # Mount static files with proper configuration
+    app.mount("/api/static", StaticFiles(directory="static", html=True), name="static")
     
     yield
     
@@ -32,7 +40,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://localhost"],  # Only allow HTTPS
+    allow_origins=["http://localhost", "https://localhost", "http://localhost:8000", "https://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
