@@ -20,13 +20,6 @@ from tinkoff.invest.schemas import InstrumentStatus, InstrumentExchangeType, Por
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
-TOKEN = os.getenv('TINKOFF_TOKEN')
-
-if not TOKEN:
-    raise ValueError("TINKOFF_TOKEN not found in .env file")
-
 class ForwardTestService:
     INITIAL_BALANCE = 1000000  # Initial balance in RUB
     
@@ -391,17 +384,3 @@ class ForwardTestService:
                 pass
             
         logger.info("Streams shut down successfully")
-
-async def main():
-    # Define target stocks
-    target_stocks = ['GAZP', 'SBER', 'LKOH']  # Add your target stocks here
-    
-    # Create and run the service
-    service = ForwardTestService(TOKEN, target_stocks)
-    try:
-        await service.run()
-    finally:
-        await service.close()
-
-if __name__ == "__main__":
-    asyncio.run(main()) 

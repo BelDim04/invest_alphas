@@ -5,7 +5,6 @@ services:
       dockerfile: Dockerfile
     # Don't expose backend ports to host - only accessible within Docker network
     environment:
-      - TINKOFF_TOKEN=${TINKOFF_TOKEN}
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=INFO
       - POSTGRES_USER=postgres
