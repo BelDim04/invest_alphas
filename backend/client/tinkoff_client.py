@@ -55,9 +55,7 @@ class TinkoffClient:
 
     async def create_sandbox_account(self, initial_balance: float = 1000000.0) -> str:
         """Create a new sandbox account with initial balance"""
-        # First close all existing sandbox accounts
-        await self.close_all_sandbox_accounts()
-        
+        # Do NOT close all existing sandbox accounts here
         async with AsyncSandboxClient(self.token) as client:
             # Create new sandbox account
             account = await client.sandbox.open_sandbox_account()
@@ -292,7 +290,7 @@ class TinkoffClient:
         current_value = current_portfolio.total_amount_portfolio.units + current_portfolio.total_amount_portfolio.nano / 1e9
         current_cash = current_portfolio.total_amount_currencies.units + current_portfolio.total_amount_currencies.nano / 1e9
         current_positions = {
-            position.figi: position.quantity.units 
+            position.figi: position.quantity.units + position.quantity.nano / 1e9
             for position in current_portfolio.positions
         }
         

@@ -73,7 +73,7 @@ class ForwardTestService:
     async def get_historical_data(self, days_back: int = 1):
         """Get historical data for target stocks"""
         end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
+        start_date = self.start_date
         
         for instrument in self.target_instruments.values():
             try:
