@@ -49,10 +49,9 @@ services:
       - "443:443"
     volumes:
       - ./frontend:/usr/share/nginx/html
-      - ./nginx/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - static_files:/usr/share/nginx/html/static
-    command: /bin/sh -c "envsubst '$$SERVER_HOST' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
     depends_on:
       - backend
     networks:
