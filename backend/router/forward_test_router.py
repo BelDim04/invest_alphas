@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from typing import Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import asyncio
 import logging
 from schema.models import ForwardTestRequest
@@ -11,6 +11,9 @@ from utils.auth_deps import create_auth_client_dependency
 from service.alpha_service import AlphaService
 from storage.db import Database, get_db
 from auth.router import get_current_user_with_db
+import os
+import pandas as pd
+import quantstats as qs
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -122,10 +125,48 @@ async def get_forward_test_history(
         }
         for date, row in history.iterrows()
     ]
+
+    # Calculate returns for quantstats
+    portfolio_value = history['value']
+    
+    # Calculate returns
+    returns = pd.Series(
+        portfolio_value.pct_change().fillna(0),
+        index=history.index,
+        name='strategy'
+    )
+    
+    report_url = None
+    # Only generate report if we have returns data
+    if len(returns) > 1 and not returns.empty:
+        # Create dummy daily index for testing (1 minute = 1 day)
+        dummy_dates = pd.date_range(
+            start='2000-01-01',  # Arbitrary start date
+            periods=len(returns),
+            freq='D'
+        )
+        returns.index = dummy_dates
+        
+        # Generate quantstats HTML report
+        report_filename = f"forward_test_report_{account_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        report_path = os.path.join("static", "reports", report_filename)
+        
+        # Create reports directory if it doesn't exist
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+            
+        qs.reports.html(
+            returns=returns,
+            output=report_path,
+            title=f"Forward Test Report - {service.expression} {service.target_stocks}",
+            download_filename=report_filename
+        )
+        
+        report_url = f"/api/static/reports/{report_filename}"
     
     return {
         'account_id': account_id,
-        'history': history_list
+        'history': history_list,
+        'report_url': report_url
     }
 
 @router.get("/active")

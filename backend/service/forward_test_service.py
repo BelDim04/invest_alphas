@@ -22,7 +22,6 @@ from utils.expression_parser import ExpressionParser
 logger = logging.getLogger(__name__)
 
 class ForwardTestService:
-    INITIAL_BALANCE = 1000000  # Initial balance in RUB
     
     def __init__(self, account_id: str, target_stocks: List[str], tinkoff_client: Optional[TinkoffClient] = None,
                  expression: Optional[str] = None):
@@ -36,7 +35,7 @@ class ForwardTestService:
         self.positions_task = None
         self.is_running = False
         self.target_instruments: Dict[str, Instrument] = {}
-        self.start_date = None
+        self.start_date = self.client.account_creation_date
         self.expression = expression
 
 
@@ -52,9 +51,6 @@ class ForwardTestService:
         if len(self.target_instruments) != len(self.target_stocks):
             missing = set(self.target_stocks) - set(self.target_instruments.keys())
             raise ValueError(f"Some target stocks not found: {missing}")
-        
-        # Set start date to current time
-        self.start_date = datetime.now(timezone.utc)
         
         logger.info(f"Tracking stocks: {list(self.target_instruments.keys())}")
 
@@ -79,7 +75,7 @@ class ForwardTestService:
             try:
                 data = await self.client.get_stock_data(
                     figi=instrument.figi,
-                    from_date=start_date,
+                    from_date=start_date - timedelta(minutes=30),
                     to_date=end_date,
                     interval=CandleInterval.CANDLE_INTERVAL_1_MIN
                 )
@@ -118,8 +114,12 @@ class ForwardTestService:
             logger.info(f"{ticker}: signal={signal:.4f}, current_position={self.positions.get(self.target_instruments[ticker].figi, 0)}")
         
         # Calculate base position size (10% of initial balance)
-        base_position_size = self.INITIAL_BALANCE * 0.1
+        current_portfolio = await self.client.get_portfolio(self.account_id)
+        current_value = current_portfolio.total_amount_portfolio.units + current_portfolio.total_amount_portfolio.nano / 1e9
+        base_position_size = current_value * 0.95
         
+        # Prepare trade actions
+        trade_actions = []
         for ticker, signal in alpha_signals.items():
             instrument = self.target_instruments[ticker]
             current_position = self.positions.get(instrument.figi, 0)
@@ -140,32 +140,44 @@ class ForwardTestService:
             # Calculate position change needed (in lots)
             position_change = target_lots - (current_position // instrument.lot_size)
             
-            if position_change > 0:
-                # Buy order
+            trade_actions.append({
+                'ticker': ticker,
+                'instrument': instrument,
+                'position_change': position_change,
+                'signal': signal,
+                'target_value': target_value,
+                'current_price': current_price
+            })
+        
+        # Execute all sell orders first
+        for action in trade_actions:
+            if action['position_change'] < 0:
                 try:
                     await self.client.post_order(
                         account_id=self.account_id,
-                        figi=instrument.figi,
-                        quantity=position_change,
-                        direction=OrderDirection.ORDER_DIRECTION_BUY,
-                        order_type=OrderType.ORDER_TYPE_MARKET
-                    )
-                    logger.info(f"Executed BUY order for {ticker}: {position_change} lots ({position_change * instrument.lot_size} shares) (signal: {signal:.4f}, target_value: {target_value:.2f} RUB, price: {current_price:.2f} RUB)")
-                except Exception as e:
-                    logger.error(f"Failed to execute BUY order for {ticker}: {str(e)}")
-            elif position_change < 0:
-                # Sell order
-                try:
-                    await self.client.post_order(
-                        account_id=self.account_id,
-                        figi=instrument.figi,
-                        quantity=abs(position_change),
+                        figi=action['instrument'].figi,
+                        quantity=abs(action['position_change']),
                         direction=OrderDirection.ORDER_DIRECTION_SELL,
                         order_type=OrderType.ORDER_TYPE_MARKET
                     )
-                    logger.info(f"Executed SELL order for {ticker}: {abs(position_change)} lots ({abs(position_change) * instrument.lot_size} shares) (signal: {signal:.4f}, target_value: {target_value:.2f} RUB, price: {current_price:.2f} RUB)")
+                    logger.info(f"Executed SELL order for {action['ticker']}: {abs(action['position_change'])} lots ({abs(action['position_change']) * action['instrument'].lot_size} shares) (signal: {action['signal']:.4f}, target_value: {action['target_value']:.2f} RUB, price: {action['current_price']:.2f} RUB)")
                 except Exception as e:
-                    logger.error(f"Failed to execute SELL order for {ticker}: {str(e)}")
+                    logger.error(f"Failed to execute SELL order for {action['ticker']}: {str(e)}")
+        
+        # Execute all buy orders after sells
+        for action in trade_actions:
+            if action['position_change'] > 0:
+                try:
+                    await self.client.post_order(
+                        account_id=self.account_id,
+                        figi=action['instrument'].figi,
+                        quantity=action['position_change'],
+                        direction=OrderDirection.ORDER_DIRECTION_BUY,
+                        order_type=OrderType.ORDER_TYPE_MARKET
+                    )
+                    logger.info(f"Executed BUY order for {action['ticker']}: {action['position_change']} lots ({action['position_change'] * action['instrument'].lot_size} shares) (signal: {action['signal']:.4f}, target_value: {action['target_value']:.2f} RUB, price: {action['current_price']:.2f} RUB)")
+                except Exception as e:
+                    logger.error(f"Failed to execute BUY order for {action['ticker']}: {str(e)}")
 
     async def run(self):
         """Main execution loop"""

@@ -111,7 +111,7 @@ class BacktestService:
             benchmark=benchmark_returns,
             benchmark_title="Equal Weight holding",
             output=report_path,
-            title=f"Backtest Report - {request.get('expression', 'Alpha Strategy')}",
+            title=f"Backtest Report - {request.get('expression', 'Alpha Strategy')} {request.get('instruments', '')}",
             download_filename=report_filename
         )
         

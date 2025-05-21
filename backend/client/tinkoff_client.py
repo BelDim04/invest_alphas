@@ -5,7 +5,7 @@ import pandas as pd
 from typing import Dict, List, Optional, Any
 import os
 from tinkoff.invest import CandleInterval, OrderDirection, OrderType, MoneyValue
-from tinkoff.invest.schemas import InstrumentExchangeType, RealExchange, PortfolioResponse, PostOrderResponse, OperationState
+from tinkoff.invest.schemas import InstrumentExchangeType, RealExchange, PortfolioResponse, PostOrderResponse, OperationState, GetOperationsByCursorRequest, OperationType
 from tinkoff.invest import InstrumentStatus
 from tinkoff.invest.sandbox.async_client import AsyncSandboxClient
 from fastapi import Depends, HTTPException, status, Security
@@ -23,6 +23,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TinkoffClient:
+    INITIAL_BALANCE = 1000000
+
     def __init__(self, token: str):
         """
         Initialize TinkoffClient with a user-specific token.
@@ -36,6 +38,7 @@ class TinkoffClient:
         self._ticker_to_figi: Dict[str, str] = {}
         self._instruments: List[Instrument] = []
         self._instruments_loaded = False
+        self.account_creation_date = None
 
     async def close_all_sandbox_accounts(self):
         """Close all existing sandbox accounts"""
@@ -53,8 +56,9 @@ class TinkoffClient:
                 logger.error(f"Error closing sandbox accounts: {str(e)}")
                 raise
 
-    async def create_sandbox_account(self, initial_balance: float = 1000000.0) -> str:
+    async def create_sandbox_account(self, initial_balance: float = INITIAL_BALANCE) -> str:
         """Create a new sandbox account with initial balance"""
+        self.account_creation_date = datetime.now(timezone.utc)
         # Do NOT close all existing sandbox accounts here
         async with AsyncSandboxClient(self.token) as client:
             # Create new sandbox account
@@ -178,16 +182,40 @@ class TinkoffClient:
             return [account.id for account in accounts.accounts]
 
     async def get_operations(self, account_id: str, from_date: datetime, to_date: datetime):
-        """Get operations history for an account"""
+        """Get operations history for an account using cursor-based pagination"""
         logger.info(f"Getting operations for account {account_id} from {from_date} to {to_date}")
+        
         async with AsyncSandboxClient(self.token) as client:
-            operations = await client.operations.get_operations(
-                account_id=account_id,
-                from_=from_date,
-                to=to_date,
-                state=OperationState.OPERATION_STATE_EXECUTED
-            )
-            return operations.operations
+            all_operations = []
+            cursor = ""
+            
+            while True:
+                response = await client.operations.get_operations_by_cursor(
+                    request=GetOperationsByCursorRequest(
+                        account_id=account_id,
+                        from_=from_date,
+                        to=to_date,
+                        state=OperationState.OPERATION_STATE_EXECUTED,
+                        cursor=cursor,
+                        limit=500,  # Reasonable batch size
+                        without_commissions=False,  # Include commission operations
+                        without_trades=False,  # Include trade operations
+                        without_overnights=False  # Include overnight operations
+                    )
+                )
+                
+                if not response.items:
+                    break
+                    
+                all_operations.extend(response.items)
+                
+                if not response.has_next:
+                    break
+                    
+                cursor = response.next_cursor
+                
+            logger.info(f"Retrieved {len(all_operations)} operations")
+            return all_operations
 
     async def get_portfolio_value_history(self, account_id: str, from_date: datetime, to_date: datetime) -> pd.DataFrame:
         """Calculate portfolio value history based on operations and current positions"""
@@ -246,19 +274,21 @@ class TinkoffClient:
         for minute, ops in sorted(operations_by_minute.items()):
             # Process all operations in this minute
             for op in ops:
+                logger.info(f"Processing operation: {op}")
                 payment = op.payment.units + op.payment.nano / 1e9 if op.payment else 0
                 
-                # Update cash and positions
-                if op.type == 'Пополнение счёта' or op.type == 'Завод денежных средств':
+                # Update cash and positions using OperationType enums
+                if op.type == OperationType.OPERATION_TYPE_INPUT:
                     cash += abs(payment)
-                elif op.type == 'Покупка ЦБ':
+                elif op.type == OperationType.OPERATION_TYPE_BUY:
                     cash -= abs(payment)
                     positions[op.figi] = positions.get(op.figi, 0) + op.quantity
-                elif op.type == 'Продажа ЦБ':
+                elif op.type == OperationType.OPERATION_TYPE_SELL:
                     cash += abs(payment)
                     positions[op.figi] = positions.get(op.figi, 0) - op.quantity
-                elif op.type == 'Удержание комиссии за операцию':
+                elif op.type == OperationType.OPERATION_TYPE_BROKER_FEE:
                     cash -= abs(payment)
+                # Add more OperationType cases as needed
             
             # Calculate position values using historical data
             position_values = {}
