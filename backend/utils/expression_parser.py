@@ -47,7 +47,19 @@ class Func(Expression):
             k = int(eval_args[1])
             return pd.Series(x).diff(k)
 
-        # Добавленные функции
+        elif self.name == 'ts_rank':
+            n = int(eval_args[1])
+            s = pd.Series(x)
+            return s.rolling(n).apply(lambda w: (w.rank(pct=True).iloc[-1]) - 0.5, raw=False)
+
+        elif self.name == 'ts_min':
+            n = int(eval_args[1])
+            return pd.Series(x).rolling(n).min()
+
+        elif self.name == 'ts_max':
+            n = int(eval_args[1])
+            return pd.Series(x).rolling(n).max()
+
         elif self.name == 'scale':
             series_x = pd.Series(x)
             return (series_x - series_x.mean()) / series_x.std()
@@ -146,7 +158,6 @@ class UnaryOp(Expression):
             raise ValueError("Unsupported unary operator")
 
 class Compare(Expression):
-    # Операторы сравнения
     ops = {
         ast.Gt: op.gt,
         ast.Lt: op.lt,
@@ -163,8 +174,45 @@ class Compare(Expression):
         return self.op(self.left.evaluate(context), self.right.evaluate(context))
 
 class ExpressionParser:
+    def _preprocess(self, text: str) -> str:
+        while '?' in text:
+            depth = 0
+            q_idx = None
+            for i, ch in enumerate(text):
+                if ch == '(':
+                    depth += 1
+                elif ch == ')':
+                    depth -= 1
+                elif ch == '?' and depth == 0:
+                    q_idx = i
+            if q_idx is None:
+                break
+            depth = 0
+            c_idx = None
+            for i in range(q_idx + 1, len(text)):
+                ch = text[i]
+                if ch == '(':
+                    depth += 1
+                elif ch == ')':
+                    depth -= 1
+                elif ch == ':' and depth == 0:
+                    c_idx = i
+                    break
+            if c_idx is None:
+                raise ValueError("Unmatched '?' – no corresponding ':' found")
+
+            # slice pieces
+            cond = text[:q_idx].rstrip()
+            true_branch = text[q_idx + 1:c_idx].strip()
+            false_branch = text[c_idx + 1:].lstrip()
+
+            # wrap them
+            text = f"ternary(({cond}), ({true_branch}), ({false_branch}))"
+        return text
+
     def parse(self, text: str) -> Expression:
-        node = ast.parse(text, mode='eval').body
+        prepared = self._preprocess(text)
+        node = ast.parse(prepared, mode='eval').body
         return self._parse_node(node)
 
     def _parse_node(self, node):
