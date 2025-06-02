@@ -112,6 +112,8 @@ class ForwardTestService:
         """Execute trades based on alpha signals"""
         logger.info("Starting trade execution with signals:")
         for ticker, signal in alpha_signals.items():
+            if signal == None:
+                continue
             logger.info(f"{ticker}: signal={signal:.4f}, current_position={self.positions.get(self.target_instruments[ticker].figi, 0)}")
         
         # Calculate base position size (10% of initial balance)
@@ -122,6 +124,8 @@ class ForwardTestService:
         # Prepare trade actions
         trade_actions = []
         for ticker, signal in alpha_signals.items():
+            if signal == None:
+                continue
             instrument = self.target_instruments[ticker]
             current_position = self.positions.get(instrument.figi, 0)
             
