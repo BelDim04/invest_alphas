@@ -142,10 +142,7 @@ class BacktestService:
                 'open': data['open'],
                 'high': data['high'],
                 'low': data['low'],
-                'volume': data['volume'],
-                'vwap': data['vwap'],
-                'adv': data['adv'],
-                'indClass': data['indClass']
+                'volume': data['volume']
             }
             
             try:

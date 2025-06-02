@@ -37,6 +37,7 @@ class ForwardTestService:
         self.target_instruments: Dict[str, Instrument] = {}
         self.start_date = self.client.account_creation_date
         self.expression = expression
+        self.last_execution_date = None  # Track the date of last execution
 
 
     async def initialize(self):
@@ -66,7 +67,7 @@ class ForwardTestService:
         logger.info(f"Total portfolio value: {self.total_value:.2f} RUB")
         return self.positions
 
-    async def get_historical_data(self, days_back: int = 1):
+    async def get_historical_data(self, days_back: int = 30):
         """Get historical data for target stocks"""
         end_date = datetime.now(timezone.utc)
         start_date = self.start_date
@@ -75,12 +76,12 @@ class ForwardTestService:
             try:
                 data = await self.client.get_stock_data(
                     figi=instrument.figi,
-                    from_date=start_date - timedelta(minutes=30),
+                    from_date=start_date - timedelta(days=days_back),
                     to_date=end_date,
-                    interval=CandleInterval.CANDLE_INTERVAL_1_MIN
+                    interval=CandleInterval.CANDLE_INTERVAL_DAY
                 )
                 self.prices_data[instrument.ticker] = data
-                logger.info(f"Retrieved {len(data)} candles for {instrument.ticker}")
+                logger.info(f"Retrieved {len(data)} daily candles for {instrument.ticker}")
             except Exception as e:
                 logger.error(f"Error getting data for {instrument.ticker}: {e}")
 
@@ -180,30 +181,49 @@ class ForwardTestService:
                     logger.error(f"Failed to execute BUY order for {action['ticker']}: {str(e)}")
 
     async def run(self):
-        """Main execution loop"""
+        """Main execution loop - runs once per day during trading hours"""
         self.is_running = True
         logger.info(f"Starting forward test service for account {self.account_id}")
         
         while self.is_running:
             try:
-                # Get current positions
-                await self.get_current_positions()
+                # Get current time in Moscow timezone (MOEX trading hours)
+                now = datetime.now(timezone.utc) + timedelta(hours=3)  # UTC+3 for Moscow
+                current_date = now.date()
                 
-                # Get historical data
-                await self.get_historical_data()
+                # Check if we already executed today
+                if self.last_execution_date == current_date:
+                    logger.debug(f"Already executed trades for {current_date}, waiting for next trading day")
+                    await asyncio.sleep(300)  # Check every 5 minutes
+                    continue
                 
-                # Calculate alpha signals
-                alpha_signals = self.calculate_alpha_signals()
-                logger.info(f"Alpha signals: {alpha_signals}")
+                # Check if it's a weekday and within trading hours (10:00 - 18:45 Moscow time)
+                if now.weekday() < 5 and 10 <= now.hour < 18 or (now.hour == 18 and now.minute <= 45):
+                    logger.info(f"Starting daily execution for {current_date}")
+                    
+                    # Get current positions
+                    await self.get_current_positions()
+                    
+                    # Get historical data
+                    await self.get_historical_data()
+                    
+                    # Calculate alpha signals
+                    alpha_signals = self.calculate_alpha_signals()
+                    logger.info(f"Daily alpha signals: {alpha_signals}")
+                    
+                    # Execute trades
+                    await self.execute_trades(alpha_signals)
+                    
+                    # Mark execution as completed for today
+                    self.last_execution_date = current_date
+                    logger.info(f"Daily execution completed for {current_date}, next execution will be on next trading day")
+                else:
+                    logger.debug(f"Outside trading hours on {current_date}, waiting for next check")
                 
-                # Execute trades
-                await self.execute_trades(alpha_signals)
-                
-                # Wait for next iteration
-                await asyncio.sleep(60)  # Check every minute
+                await asyncio.sleep(300)  # Check every 5 minutes
                 
             except Exception as e:
                 logger.error(f"Error in main loop: {e}")
-                await asyncio.sleep(60)
+                await asyncio.sleep(60)  # On error, wait for 1 minute before retrying
         
         logger.info(f"Stopping forward test service for account {self.account_id}") 
