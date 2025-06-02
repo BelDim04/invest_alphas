@@ -139,14 +139,6 @@ async def get_forward_test_history(
     report_url = None
     # Only generate report if we have returns data
     if len(returns) > 1 and not returns.empty:
-        # Create dummy daily index for testing (1 minute = 1 day)
-        dummy_dates = pd.date_range(
-            start='2000-01-01',  # Arbitrary start date
-            periods=len(returns),
-            freq='D'
-        )
-        returns.index = dummy_dates
-        
         # Generate quantstats HTML report
         report_filename = f"forward_test_report_{account_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         report_path = os.path.join("static", "reports", report_filename)
