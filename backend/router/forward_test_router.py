@@ -138,7 +138,7 @@ async def get_forward_test_history(
     
     report_url = None
     # Only generate report if we have returns data
-    if len(returns) > 1 and not returns.empty:
+    if len(returns) > 2 and not returns.empty:
         # Generate quantstats HTML report
         report_filename = f"forward_test_report_{account_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         report_path = os.path.join("static", "reports", report_filename)
