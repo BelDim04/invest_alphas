@@ -32,6 +32,7 @@ class BacktestResponse(BaseModel):
 class ForwardTestRequest(BaseModel):
     instruments: List[str]
     alpha_id: int
+    trade_on_weekends: bool = False  # Default to False for backward compatibility
 
 class Error(BaseModel):
     error: str

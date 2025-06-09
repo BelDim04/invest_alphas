@@ -18,14 +18,14 @@ async def create_alpha(
     service: AlphaService = Depends(get_alpha_service),
     current_user: Dict[str, Any] = Security(get_current_user_with_db, scopes=["alphas:write"])
 ):
-    return await service.create_alpha(alpha.alpha)
+    return await service.create_alpha(current_user["id"], alpha.alpha)
 
 @router.get("/", response_model=AlphaListResponse)
 async def get_all_alphas(
     service: AlphaService = Depends(get_alpha_service),
     current_user: Dict[str, Any] = Security(get_current_user_with_db, scopes=["alphas:read"])
 ):
-    alphas = await service.get_all_alphas()
+    alphas = await service.get_all_alphas(current_user["id"])
     return AlphaListResponse(alphas=alphas)
 
 @router.get("/{alpha_id}", response_model=AlphaResponse)
@@ -34,7 +34,7 @@ async def get_alpha(
     service: AlphaService = Depends(get_alpha_service),
     current_user: Dict[str, Any] = Security(get_current_user_with_db, scopes=["alphas:read"])
 ):
-    return await service.get_alpha(alpha_id)
+    return await service.get_alpha(alpha_id, current_user["id"])
 
 @router.put("/{alpha_id}", response_model=AlphaResponse)
 async def update_alpha(
@@ -43,7 +43,7 @@ async def update_alpha(
     service: AlphaService = Depends(get_alpha_service),
     current_user: Dict[str, Any] = Security(get_current_user_with_db, scopes=["alphas:write"])
 ):
-    return await service.update_alpha(alpha_id, alpha.alpha)
+    return await service.update_alpha(alpha_id, current_user["id"], alpha.alpha)
 
 @router.delete("/{alpha_id}", response_model=AlphaResponse)
 async def delete_alpha(
@@ -51,4 +51,4 @@ async def delete_alpha(
     service: AlphaService = Depends(get_alpha_service),
     current_user: Dict[str, Any] = Security(get_current_user_with_db, scopes=["alphas:write"])
 ):
-    return await service.delete_alpha(alpha_id) 
+    return await service.delete_alpha(alpha_id, current_user["id"]) 

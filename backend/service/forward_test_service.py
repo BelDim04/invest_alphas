@@ -17,43 +17,45 @@ from tinkoff.invest import (
 from tinkoff.invest.schemas import InstrumentStatus, InstrumentExchangeType
 from schema.models import Instrument
 from utils.expression_parser import ExpressionParser
+from storage.db import Database
 
 
 logger = logging.getLogger(__name__)
 
 class ForwardTestService:
     
-    def __init__(self, account_id: str, target_stocks: List[str], tinkoff_client: Optional[TinkoffClient] = None,
-                 expression: Optional[str] = None):
+    def __init__(self, forward_test_id: int, account_id: str, target_stocks: List[str], 
+                 tinkoff_client: Optional[TinkoffClient] = None,
+                 expression: Optional[str] = None, db: Optional[Database] = None,
+                 trade_on_weekends: bool = False):
+        self.forward_test_id = forward_test_id
         self.account_id = account_id
         self.target_stocks = target_stocks
         self.client = tinkoff_client or TinkoffClient()
+        self.db = db
         self.positions = {}
-        self.prices_data = {}
         self.total_value = 0
-        self.portfolio_task = None
-        self.positions_task = None
-        self.is_running = False
+        self.prices_data = {}
         self.target_instruments: Dict[str, Instrument] = {}
         self.start_date = self.client.account_creation_date
         self.expression = expression
         self.last_execution_date = None  # Track the date of last execution
-
+        self.trade_on_weekends = trade_on_weekends
 
     async def initialize(self):
         """Initialize the service and get necessary data"""
         # Get instruments and verify all target stocks exist
         instruments = await self.client.get_instruments()
         self.target_instruments = {
-            i.ticker: i for i in instruments 
-            if i.ticker in self.target_stocks
+            i.figi: i for i in instruments 
+            if i.figi in self.target_stocks
         }
         
         if len(self.target_instruments) != len(self.target_stocks):
             missing = set(self.target_stocks) - set(self.target_instruments.keys())
             raise ValueError(f"Some target stocks not found: {missing}")
         
-        logger.info(f"Tracking stocks: {list(self.target_instruments.keys())}")
+        logger.info(f"Tracking stocks: {[i.ticker for i in self.target_instruments.values()]}")
 
     async def get_current_positions(self):
         """Get current positions in the account"""
@@ -72,7 +74,8 @@ class ForwardTestService:
         end_date = datetime.now(timezone.utc)
         start_date = self.start_date
         
-        for instrument in self.target_instruments.values():
+        for figi in self.target_stocks:
+            instrument = self.target_instruments[figi]
             try:
                 data = await self.client.get_stock_data(
                     figi=instrument.figi,
@@ -114,7 +117,7 @@ class ForwardTestService:
         for ticker, signal in alpha_signals.items():
             if signal == None:
                 continue
-            logger.info(f"{ticker}: signal={signal:.4f}, current_position={self.positions.get(self.target_instruments[ticker].figi, 0)}")
+            logger.info(f"{ticker}: signal={signal:.4f}, current_position={self.positions.get(await self.client.get_figi_by_ticker(ticker), 0)}")
         
         # Calculate base position size (10% of initial balance)
         current_portfolio = await self.client.get_portfolio(self.account_id)
@@ -126,7 +129,7 @@ class ForwardTestService:
         for ticker, signal in alpha_signals.items():
             if signal == None:
                 continue
-            instrument = self.target_instruments[ticker]
+            instrument = self.target_instruments[await self.client.get_figi_by_ticker(ticker)]
             current_position = self.positions.get(instrument.figi, 0)
             
             # Get current price from historical data
@@ -184,13 +187,20 @@ class ForwardTestService:
                 except Exception as e:
                     logger.error(f"Failed to execute BUY order for {action['ticker']}: {str(e)}")
 
+
     async def run(self):
-        """Main execution loop - runs once per day during trading hours"""
-        self.is_running = True
+        """Main execution loop"""
         logger.info(f"Starting forward test service for account {self.account_id}")
         
-        while self.is_running:
+        while True:
             try:
+                # Check if test should still be running
+                if self.db:
+                    forward_test = await self.db.get_forward_test(self.forward_test_id)
+                    if not forward_test or not forward_test.get('is_running'):
+                        logger.info(f"Forward test {self.forward_test_id} stopped")
+                        break
+
                 # Get current time in Moscow timezone (MOEX trading hours)
                 now = datetime.now(timezone.utc) + timedelta(hours=3)  # UTC+3 for Moscow
                 current_date = now.date()
@@ -201,8 +211,12 @@ class ForwardTestService:
                     await asyncio.sleep(300)  # Check every 5 minutes
                     continue
                 
-                # Check if it's a weekday and within trading hours (10:00 - 18:45 Moscow time)
-                if now.weekday() < 5 and 10 <= now.hour < 18 or (now.hour == 18 and now.minute <= 45):
+                # Check if it's within trading hours (10:00 - 18:45 Moscow time)
+                # If trade_on_weekends is True, ignore weekday check
+                is_trading_time = 10 <= now.hour < 18 or (now.hour == 18 and now.minute <= 45)
+                is_weekday = now.weekday() < 5
+                
+                if (is_trading_time and (is_weekday or self.trade_on_weekends)):
                     logger.info(f"Starting daily execution for {current_date}")
                     
                     # Get current positions
