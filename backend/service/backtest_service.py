@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import numpy as np
 import vectorbt as vbt
-from vectorbt.portfolio.enums import SizeType
+from vectorbt.portfolio.enums import SizeType, CallSeqType, Direction 
 import quantstats as qs
 from utils.expression_parser import ExpressionParser
 import io
@@ -65,7 +65,7 @@ class BacktestService:
             
         # Calculate alpha signals
         signals = self._calculate_alpha_signals(portfolio_data, request['expression'])
-        signals = neutralize_weights(signals)
+        # signals = neutralize_weights(signals)
 
         logger.info(f"Signals: {signals}")
         
@@ -83,10 +83,12 @@ class BacktestService:
         portfolio = vbt.Portfolio.from_orders(
             prices,
             signals,
-            size_type=SizeType.Percent,
-            init_cash=1000000,  # Initial capital
+            size_type=SizeType.TargetPercent,
             fees=commission,    # Commission from request
             freq='1D',          # Daily data
+            init_cash=1000000,
+            direction=Direction.Both,
+            call_seq=CallSeqType.Auto
         )
 
         # Generate portfolio statistics
