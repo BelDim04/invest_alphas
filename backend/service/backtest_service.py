@@ -14,11 +14,13 @@ import seaborn as sns
 from io import StringIO
 import tempfile
 import os
-
+import logging
 from client.tinkoff_client import TinkoffClient
 from schema.models import BacktestRequest, Instrument, BacktestResponse, BacktestResult
 from tinkoff.invest.schemas import RealExchange
 from utils.alpha_calculator import calculate_alpha1, neutralize_weights
+
+logger = logging.getLogger(__name__)
 
 
 class BacktestService:
@@ -64,6 +66,8 @@ class BacktestService:
         # Calculate alpha signals
         signals = self._calculate_alpha_signals(portfolio_data, request['expression'])
         signals = neutralize_weights(signals)
+
+        logger.info(f"Signals: {signals}")
         
         # Create portfolio
         prices = pd.DataFrame({
@@ -71,17 +75,23 @@ class BacktestService:
             for name, data in portfolio_data.items()
         })
 
+        logger.info(f"Prices: {prices}")
+
+        # Get commission percent from request (convert from percentage to decimal)
+        commission = request.get('commission_percent', 0.1) / 100
+
         portfolio = vbt.Portfolio.from_orders(
             prices,
             signals,
             size_type=SizeType.Percent,
             init_cash=1000000,  # Initial capital
-            fees=0.001,         # 0.1% trading fee
+            fees=commission,    # Commission from request
             freq='1D',          # Daily data
         )
 
         # Generate portfolio statistics
-        stats = portfolio.stats()
+        rf_rate = await self.tinkoff_client.get_risk_free_rate(request['start_date'], request['end_date'])
+        stats = portfolio.stats(settings=dict(risk_free=rf_rate))
         
         # Generate quantstats HTML report
         report_filename = f"backtest_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
@@ -99,20 +109,32 @@ class BacktestService:
             name='strategy'
         )
         
-        # Calculate benchmark returns
-        benchmark_returns = pd.Series(
-            pd.DataFrame({ticker: data['close'] for ticker, data in portfolio_data.items()}).pct_change().fillna(0).mean(axis=1),
-            index=portfolio_data[request['instruments'][0]].index,
-            name='benchmark'
+        # Get benchmark returns
+        benchmark_returns = await self.tinkoff_client.get_benchmark_returns(
+            request['start_date'],
+            request['end_date']
         )
+        benchmark_title = "EQMX"
+
+        if benchmark_returns is None or benchmark_returns.empty:
+            # Create equal weight benchmark with timezone-naive datetime index
+            portfolio_df = pd.DataFrame({ticker: data['close'] for ticker, data in portfolio_data.items()})
+            portfolio_df.index = pd.to_datetime(portfolio_df.index).tz_localize(None)
+            benchmark_returns = pd.Series(
+                portfolio_df.pct_change().fillna(0).mean(axis=1),
+                index=portfolio_df.index,
+                name='Equal Weight'
+            )
+            benchmark_title = "Equal Weight"
             
         qs.reports.html(
             returns=returns,
             benchmark=benchmark_returns,
-            benchmark_title="Equal Weight holding",
+            benchmark_title=benchmark_title,
             output=report_path,
             title=f"Backtest Report - {request.get('expression', 'Alpha Strategy')} {request.get('instruments', '')}",
-            download_filename=report_filename
+            download_filename=report_filename,
+            rf=rf_rate
         )
         
         # Generate plots

@@ -180,18 +180,33 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Select Alpha</label>
-                    <select
-                        x-model="backtestForm.alphaId"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        @change="updateBacktestExpression"
-                    >
-                        <option value="">Select an alpha...</option>
-                        <template x-for="alpha in alphas" :key="alpha.id">
-                            <option :value="alpha.id" x-text="alpha.alpha"></option>
-                        </template>
-                    </select>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Select Alpha</label>
+                        <select
+                            x-model="backtestForm.alphaId"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            @change="updateBacktestExpression"
+                        >
+                            <option value="">Select an alpha...</option>
+                            <template x-for="alpha in alphas" :key="alpha.id">
+                                <option :value="alpha.id" x-text="alpha.alpha"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Commission Percent</label>
+                        <input
+                            type="number"
+                            x-model="backtestForm.commissionPercent"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            step="0.01"
+                            min="0"
+                            value="0.1"
+                            required
+                        >
+                        <p class="mt-1 text-sm text-gray-500">Enter commission as percentage (e.g., 0.1 for 0.1%)</p>
+                    </div>
                 </div>
 
                 <div>
@@ -414,6 +429,18 @@
                     </div>
                 </div>
 
+                <div class="flex items-center">
+                    <input
+                        type="checkbox"
+                        id="trade_on_weekends"
+                        x-model="forwardTestForm.tradeOnWeekends"
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    >
+                    <label for="trade_on_weekends" class="ml-2 block text-sm text-gray-900">
+                        Trade on weekends
+                    </label>
+                </div>
+
                 <div class="flex justify-end space-x-4">
                     <button
                         type="submit"
@@ -432,17 +459,21 @@
                     <table class="min-w-full bg-white">
                         <thead>
                             <tr class="bg-gray-50">
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Forward Test ID</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Account ID</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Instruments</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Alpha</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Alpha ID</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-for="test in activeForwardTests" :key="test.account_id">
+                            <template x-for="test in activeForwardTests" :key="test.forward_test_id">
                                 <tr class="border-t">
+                                    <td class="px-4 py-2">
+                                        <span class="text-gray-600" x-text="test.forward_test_id"></span>
+                                    </td>
                                     <td class="px-4 py-2">
                                         <span class="text-blue-600" x-text="test.account_id"></span>
                                     </td>
@@ -456,14 +487,14 @@
                                         </template>
                                     </td>
                                     <td class="px-4 py-2">
-                                        <pre class="text-xs bg-gray-50 rounded p-2" style="max-width: 300px; overflow-x: auto;" x-text="test.alpha_expression"></pre>
+                                        <span class="text-gray-600" x-text="test.alpha_id"></span>
                                     </td>
                                     <td class="px-4 py-2 space-x-2">
-                                        <button @click="refreshForwardTestHistory(test.account_id)" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">
-                                            <span x-show="selectedForwardTestId !== test.account_id">Show History</span>
-                                            <span x-show="selectedForwardTestId === test.account_id">Refresh History</span>
+                                        <button @click="refreshForwardTestHistory(test.account_id, test.forward_test_id)" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">
+                                            <span x-show="selectedForwardTestId !== test.forward_test_id">Show History</span>
+                                            <span x-show="selectedForwardTestId === test.forward_test_id">Refresh History</span>
                                         </button>
-                                        <button @click="stopForwardTest(test.account_id)" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Stop</button>
+                                        <button @click="stopForwardTest(test.account_id, test.forward_test_id)" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Stop</button>
                                     </td>
                                 </tr>
                             </template>
@@ -549,11 +580,13 @@
                     startDate: '',
                     endDate: '',
                     alphaId: '',
-                    expression: ''
+                    expression: '',
+                    commissionPercent: 0.1
                 },
                 forwardTestForm: {
                     alphaId: '',
-                    expression: ''
+                    expression: '',
+                    tradeOnWeekends: false
                 },
                 forwardExpression: '',
                 showForwardInstruments: false,
@@ -740,7 +773,8 @@
                             start_date: this.backtestForm.startDate,
                             end_date: this.backtestForm.endDate,
                             alpha_id: this.backtestForm.alphaId,
-                            expression: this.backtestForm.expression
+                            expression: this.backtestForm.expression,
+                            commission_percent: this.backtestForm.commissionPercent
                         })
                     });
 
@@ -782,41 +816,47 @@
                         },
                         body: JSON.stringify({
                             instruments: this.selectedForwardInstruments.map(i => i.ticker),
-                            alpha_id: this.forwardTestForm.alphaId
+                            alpha_id: this.forwardTestForm.alphaId,
+                            trade_on_weekends: this.forwardTestForm.tradeOnWeekends
                         })
                     });
                     if (!result.error) {
                         await this.loadActiveForwardTests();
+                        // Show history for the newly created test
+                        if (result.data.forward_test_id) {
+                            this.selectedForwardTestId = result.data.forward_test_id;
+                            await this.refreshForwardTestHistory(result.data.account_id, result.data.forward_test_id);
+                        }
                     } else {
                         alert('Error starting forward test: ' + (result.message || 'Unknown error'));
                     }
                 },
 
-                async stopForwardTest(accountId) {
+                async stopForwardTest(accountId, forwardTestId) {
                     const result = await this.safeFetch(`/api/v1/forward/stop?account_id=${accountId}`, {
                         method: 'POST'
                     });
                     if (!result.error) {
                         await this.loadActiveForwardTests();
-                        delete this.forwardTestHistories[accountId];
-                        if (this.selectedForwardTestId === accountId) {
-                            this.selectedForwardTestId = this.activeForwardTests.length > 0 ? this.activeForwardTests[0].account_id : null;
+                        delete this.forwardTestHistories[forwardTestId];
+                        if (this.selectedForwardTestId === forwardTestId) {
+                            this.selectedForwardTestId = this.activeForwardTests.length > 0 ? this.activeForwardTests[0].forward_test_id : null;
                         }
                     } else {
                         alert('Error stopping forward test: ' + (result.message || 'Unknown error'));
                     }
                 },
 
-                async refreshForwardTestHistory(accountId) {
+                async refreshForwardTestHistory(accountId, forwardTestId) {
                     // Show history if it's not already shown
-                    if (this.selectedForwardTestId !== accountId) {
-                        this.selectedForwardTestId = accountId;
+                    if (this.selectedForwardTestId !== forwardTestId) {
+                        this.selectedForwardTestId = forwardTestId;
                     }
                     
                     // Refresh the history data
                     const result = await this.safeFetch(`/api/v1/forward/history/${accountId}`);
                     if (!result.error) {
-                        this.forwardTestHistories[accountId] = result.data;
+                        this.forwardTestHistories[forwardTestId] = result.data;
                     } else {
                         alert('Error fetching portfolio history: ' + (result.message || 'Unknown error'));
                     }
@@ -934,8 +974,8 @@
                     if (!result.error && result.data.active_tests.length > 0) {
                         this.activeForwardTests = result.data.active_tests;
                         if (!this.selectedForwardTestId && this.activeForwardTests.length > 0) {
-                            this.selectedForwardTestId = this.activeForwardTests[0].account_id;
-                            await this.refreshForwardTestHistory(this.selectedForwardTestId);
+                            this.selectedForwardTestId = this.activeForwardTests[0].forward_test_id;
+                            await this.refreshForwardTestHistory(this.activeForwardTests[0].account_id, this.activeForwardTests[0].forward_test_id);
                         }
                     } else {
                         this.activeForwardTests = [];

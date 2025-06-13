@@ -17,29 +17,25 @@ from tinkoff.invest import (
 from tinkoff.invest.schemas import InstrumentStatus, InstrumentExchangeType
 from schema.models import Instrument
 from utils.expression_parser import ExpressionParser
-from storage.db import Database
-
 
 logger = logging.getLogger(__name__)
 
 class ForwardTestService:
     
-    def __init__(self, forward_test_id: int, account_id: str, target_stocks: List[str], 
-                 tinkoff_client: Optional[TinkoffClient] = None,
-                 expression: Optional[str] = None, db: Optional[Database] = None,
+    def __init__(self, forward_test_id: Optional[int], account_id: str, target_stocks: List[str], 
+                 tinkoff_client: Optional[TinkoffClient] = None, start_date: Optional[datetime] = None,
+                 expression: Optional[str] = None,
                  trade_on_weekends: bool = False):
         self.forward_test_id = forward_test_id
         self.account_id = account_id
         self.target_stocks = target_stocks
-        self.client = tinkoff_client or TinkoffClient()
-        self.db = db
+        self.client = tinkoff_client
         self.positions = {}
         self.total_value = 0
         self.prices_data = {}
         self.target_instruments: Dict[str, Instrument] = {}
-        self.start_date = self.client.account_creation_date
+        self.start_date = start_date
         self.expression = expression
-        self.last_execution_date = None  # Track the date of last execution
         self.trade_on_weekends = trade_on_weekends
 
     async def initialize(self):
@@ -185,63 +181,4 @@ class ForwardTestService:
                     )
                     logger.info(f"Executed BUY order for {action['ticker']}: {action['position_change']} lots ({action['position_change'] * action['instrument'].lot_size} shares) (signal: {action['signal']:.4f}, target_value: {action['target_value']:.2f} RUB, price: {action['current_price']:.2f} RUB)")
                 except Exception as e:
-                    logger.error(f"Failed to execute BUY order for {action['ticker']}: {str(e)}")
-
-
-    async def run(self):
-        """Main execution loop"""
-        logger.info(f"Starting forward test service for account {self.account_id}")
-        
-        while True:
-            try:
-                # Check if test should still be running
-                if self.db:
-                    forward_test = await self.db.get_forward_test(self.forward_test_id)
-                    if not forward_test or not forward_test.get('is_running'):
-                        logger.info(f"Forward test {self.forward_test_id} stopped")
-                        break
-
-                # Get current time in Moscow timezone (MOEX trading hours)
-                now = datetime.now(timezone.utc) + timedelta(hours=3)  # UTC+3 for Moscow
-                current_date = now.date()
-                
-                # Check if we already executed today
-                if self.last_execution_date == current_date:
-                    logger.debug(f"Already executed trades for {current_date}, waiting for next trading day")
-                    await asyncio.sleep(300)  # Check every 5 minutes
-                    continue
-                
-                # Check if it's within trading hours (10:00 - 18:45 Moscow time)
-                # If trade_on_weekends is True, ignore weekday check
-                is_trading_time = 10 <= now.hour < 18 or (now.hour == 18 and now.minute <= 45)
-                is_weekday = now.weekday() < 5
-                
-                if (is_trading_time and (is_weekday or self.trade_on_weekends)):
-                    logger.info(f"Starting daily execution for {current_date}")
-                    
-                    # Get current positions
-                    await self.get_current_positions()
-                    
-                    # Get historical data
-                    await self.get_historical_data()
-                    
-                    # Calculate alpha signals
-                    alpha_signals = self.calculate_alpha_signals()
-                    logger.info(f"Daily alpha signals: {alpha_signals}")
-                    
-                    # Execute trades
-                    await self.execute_trades(alpha_signals)
-                    
-                    # Mark execution as completed for today
-                    self.last_execution_date = current_date
-                    logger.info(f"Daily execution completed for {current_date}, next execution will be on next trading day")
-                else:
-                    logger.debug(f"Outside trading hours on {current_date}, waiting for next check")
-                
-                await asyncio.sleep(300)  # Check every 5 minutes
-                
-            except Exception as e:
-                logger.error(f"Error in main loop: {e}")
-                await asyncio.sleep(60)  # On error, wait for 1 minute before retrying
-        
-        logger.info(f"Stopping forward test service for account {self.account_id}") 
+                    logger.error(f"Failed to execute BUY order for {action['ticker']}: {str(e)}") 

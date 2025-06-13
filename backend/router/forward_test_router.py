@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from typing import Dict, Any
 from datetime import datetime, timezone, timedelta
-import asyncio
 import logging
+import pandas as pd
+import os
 from schema.models import ForwardTestRequest
 from service.forward_test_service import ForwardTestService
 from client.tinkoff_client import TinkoffClient
@@ -11,11 +12,8 @@ from utils.auth_deps import create_auth_client_dependency
 from service.alpha_service import AlphaService
 from storage.db import Database, get_db
 from auth.router import get_current_user_with_db
-import os
-import pandas as pd
 import quantstats as qs
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/forward", tags=["forward"])
@@ -36,7 +34,7 @@ async def start_forward_test(
     db: Database = Depends(get_db),
     current_user: Dict[str, Any] = Security(get_current_user_with_db, scopes=["forward:write"])
 ):
-    """Start forward testing for selected instruments"""
+    """Initialize a new forward test"""
     user_id = current_user["id"]
     
     # Load the alpha expression
@@ -62,37 +60,57 @@ async def start_forward_test(
                 raise HTTPException(status_code=400, detail=f"FIGI {figi} for ticker {ticker} is not available for trading")
             figis.append(figi)
             # Store FIGI in database
-            figi_id = await db.upsert_figi(figi)
+            figi_id = await db.upsert_figi(figi, ticker)
             figi_ids.append(figi_id)
         except ValueError as e:
             raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found")
     
-    # Create forward test record
-    forward_test_id = await db.create_forward_test(
-        user_id=user_id,
-        account_id=account_id,
-        alpha_id=request.alpha_id,
-        figi_ids=figi_ids
-    )
-    
-    # Create and initialize service
+    # Initialize service for first iteration
     service = ForwardTestService(
-        forward_test_id=forward_test_id,
+        forward_test_id=None,  # Will be set after DB creation
         account_id=account_id,
-        target_stocks=figis,  # These are now validated FIGIs
+        target_stocks=figis,
         expression=alpha['alpha'],
         tinkoff_client=client,
-        db=db,
+        start_date=datetime.now(timezone.utc),
         trade_on_weekends=request.trade_on_weekends
     )
     
-    # Initialize and start the service
-    await service.initialize()
-    
-    # Start the service in the background
-    asyncio.create_task(service.run())
-    
-    return {"status": "started", "account_id": account_id, "forward_test_id": forward_test_id}
+    try:
+        # Try to execute first iteration
+        await service.initialize()
+        await service.get_current_positions()
+        await service.get_historical_data()
+        alpha_signals = service.calculate_alpha_signals()
+        await service.execute_trades(alpha_signals)
+        
+        # Only create DB record after successful execution
+        forward_test_id = await db.create_forward_test(
+            user_id=user_id,
+            account_id=account_id,
+            alpha_id=request.alpha_id,
+            figi_ids=figi_ids,
+            trade_on_weekends=request.trade_on_weekends
+        )
+        
+        # Update last execution date
+        current_date = datetime.now(timezone.utc).date()
+        await db.update_last_execution_date(forward_test_id, current_date)
+        
+        return {
+            "status": "started",
+            "account_id": account_id,
+            "forward_test_id": forward_test_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting forward test for account {account_id}: {str(e)}")
+        # Close sandbox account on failure
+        try:
+            await client.close_sandbox_account(account_id)
+        except Exception as close_error:
+            logger.error(f"Error closing sandbox account {account_id}: {close_error}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/stop")
 @handle_errors
@@ -116,7 +134,11 @@ async def stop_forward_test(
     # Close sandbox account
     await client.close_sandbox_account(account_id)
     
-    return {"status": "stopped", "account_id": account_id, "forward_test_id": forward_test['id']}
+    return {
+        "status": "stopped",
+        "account_id": account_id,
+        "forward_test_id": forward_test['id']
+    }
 
 @router.get("/history/{account_id}")
 @handle_errors
@@ -137,7 +159,7 @@ async def get_forward_test_history(
     # Get history from start date to now
     history = await client.get_portfolio_value_history(
         account_id, 
-        forward_test['datetime_start'],
+        forward_test['datetime_start'] - timedelta(days=1),
         datetime.now(timezone.utc)
     )
     
@@ -162,6 +184,18 @@ async def get_forward_test_history(
         name='strategy'
     )
     
+    # Get benchmark returns
+    benchmark_returns = await client.get_benchmark_returns(
+        forward_test['datetime_start'],
+        datetime.now(timezone.utc)
+    )
+    
+    # Get risk-free rate
+    rf_rate = await client.get_risk_free_rate(
+        forward_test['datetime_start'],
+        datetime.now(timezone.utc)
+    )
+    
     report_url = None
     # Only generate report if we have returns data
     if len(returns) > 2 and not returns.empty:
@@ -171,13 +205,24 @@ async def get_forward_test_history(
         
         # Create reports directory if it doesn't exist
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        
+        # Prepare report parameters
+        report_params = {
+            'returns': returns,
+            'output': report_path,
+            'title': f"Forward Test Report - {forward_test['alpha_id']} {[f['figi'] for f in forward_test['figis']]}",
+            'download_filename': report_filename,
+            'rf': rf_rate
+        }
+        
+        # Add benchmark only if we have valid data
+        if benchmark_returns is not None and not benchmark_returns.empty:
+            report_params.update({
+                'benchmark': benchmark_returns,
+                'benchmark_title': 'EQMX'
+            })
             
-        qs.reports.html(
-            returns=returns,
-            output=report_path,
-            title=f"Forward Test Report - {forward_test['alpha_id']} {[f['figi'] for f in forward_test['figis']]}",
-            download_filename=report_filename
-        )
+        qs.reports.html(**report_params)
         
         report_url = f"/api/static/reports/{report_filename}"
     
@@ -205,7 +250,7 @@ async def list_active_forward_tests(
             "status": "running" if test['is_running'] else "stopped",
             "start_date": test['datetime_start'].isoformat(),
             "end_date": test['datetime_end'].isoformat() if test['datetime_end'] else None,
-            "instruments": [f['figi'] for f in test['figis']],
+            "instruments": [f['ticker'] for f in test['figis']],
             "alpha_id": test['alpha_id']
         } for test in forward_tests]
     } 

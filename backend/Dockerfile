@@ -5,7 +5,8 @@ WORKDIR /app
 # Install system dependencies and fonts
 RUN apt-get update && \
     apt-get install -y \
-    sed && \
+    sed \
+    libexpat1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

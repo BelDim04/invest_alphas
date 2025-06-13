@@ -90,19 +90,13 @@ class TinkoffClient:
                 instrument_exchange=InstrumentExchangeType.INSTRUMENT_EXCHANGE_UNSPECIFIED
             )).instruments
 
-            futures = (await client.instruments.futures(
+            etfs = (await client.instruments.etfs(
                 instrument_status=InstrumentStatus.INSTRUMENT_STATUS_BASE,
                 instrument_exchange=InstrumentExchangeType.INSTRUMENT_EXCHANGE_UNSPECIFIED
-            )).instruments
+            )).instruments  
 
-            # Combine shares and futures
-            instruments = shares + futures
-
-            # Update ticker to FIGI mapping
-            self._ticker_to_figi = {
-                instrument.ticker: instrument.figi
-                for instrument in instruments
-            }
+            # Combine shares and etfs
+            instruments = shares + etfs
 
             # Cache instruments
             self._instruments = [
@@ -119,6 +113,13 @@ class TinkoffClient:
                 for instrument in instruments
                 if instrument.real_exchange == RealExchange.REAL_EXCHANGE_MOEX
             ]
+
+            # Update ticker to FIGI mapping
+            self._ticker_to_figi = {
+                instrument.ticker: instrument.figi
+                for instrument in self._instruments
+            }
+
             self._instruments_loaded = True
 
             return self._instruments
@@ -241,7 +242,7 @@ class TinkoffClient:
                         figi=figi,
                         from_=from_date,
                         to=to_date,
-                        interval=CandleInterval.CANDLE_INTERVAL_1_MIN
+                        interval=CandleInterval.CANDLE_INTERVAL_DAY
                     )
                 if candles.candles:
                     # Create a DataFrame with minute-by-minute prices
@@ -331,6 +332,44 @@ class TinkoffClient:
         }
         
         return portfolio_history
+
+    async def get_benchmark_returns(self, from_date: datetime, to_date: datetime, benchmark_ticker: str = 'EQMX') -> pd.Series:
+        """Get benchmark returns for a given period"""
+        try:
+            figi = await self.get_figi_by_ticker(benchmark_ticker)
+            data = await self.get_stock_data(figi, from_date, to_date)
+            if data is not None and not data.empty:
+                # Ensure time column is timezone-naive datetime
+                data['time'] = pd.to_datetime(data['time']).dt.tz_localize(None)
+                data.set_index('time', inplace=True)
+                return pd.Series(
+                    data['close'].pct_change().fillna(0),
+                    index=data.index,
+                    name=benchmark_ticker
+                )
+        except Exception as e:
+            logger.error(f"Error getting benchmark data for {benchmark_ticker}: {e}")
+        return None
+
+    async def get_risk_free_rate(self, from_date: datetime, to_date: datetime, risk_free_ticker: str = 'LQDT') -> float:
+        """Calculate risk-free rate (CAGR) from LQDT ticker for the given period"""
+        try:
+            figi = await self.get_figi_by_ticker(risk_free_ticker)
+            data = await self.get_stock_data(figi, from_date, to_date)
+            if data is not None and not data.empty:
+                # Ensure timezone-naive datetimes for calculation
+                from_date = from_date.replace(tzinfo=None)
+                to_date = to_date.replace(tzinfo=None)
+                
+                # Calculate CAGR
+                start_price = data['close'].iloc[0]
+                end_price = data['close'].iloc[-1]
+                days = (to_date - from_date).days
+                cagr = (end_price / start_price) ** (252 / days) - 1
+                return cagr
+        except Exception as e:
+            logger.error(f"Error calculating risk-free rate from {risk_free_ticker}: {e}")
+        return 0.0
 
 # Dependency injection for tinkoff client with user-specific token
 async def get_tinkoff_client(

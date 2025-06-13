@@ -30,13 +30,17 @@ def get_alpha_service(db: Database = Depends(get_db)) -> AlphaService:
 async def backtest_alpha(
     request: BacktestRequest, 
     service: BacktestService = Depends(get_backtest_service),
-    alpha_service: AlphaService = Depends(get_alpha_service)
+    alpha_service: AlphaService = Depends(get_alpha_service),
+    current_user: Dict[str, Any] = Security(get_current_user_with_db, scopes=["backtest:write"])
 ):
     """Run backtest for selected instruments"""
     # Load the alpha expression
-    alpha = await alpha_service.get_alpha(request.alpha_id)
+    alpha = await alpha_service.get_alpha(request.alpha_id, current_user["id"])
     if not alpha:
         raise HTTPException(status_code=404, detail=f"Alpha with id {request.alpha_id} not found")
+    
+    if request.commission_percent is None or request.commission_percent < 0:
+        raise HTTPException(status_code=400, detail="Commission percent must be a positive number")
     
     # Create a new request with the alpha expression
     request_dict = request.dict()

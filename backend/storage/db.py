@@ -2,6 +2,7 @@ import os
 import asyncpg
 from typing import List, Optional, Dict, Any
 from fastapi import Depends
+import datetime
 
 class Database:
     def __init__(self):
@@ -29,13 +30,39 @@ class Database:
                 }
             )
             await self._init_db()
+            
+    async def _recreate_tables(self):
+        """Force recreation of all tables with new schema"""
+        async with self.pool.acquire() as conn:
+            # Drop tables in reverse order to avoid foreign key constraint issues
+            await conn.execute('''
+                DROP TABLE IF EXISTS forward_test_figis CASCADE;
+                DROP TABLE IF EXISTS forward_tests CASCADE;
+                DROP TABLE IF EXISTS alphas CASCADE;
+                DROP TABLE IF EXISTS figis CASCADE;
+            ''')
+            await self._init_db()
 
     async def _init_db(self):
         async with self.pool.acquire() as conn:
+            # First ensure users table exists (defined in auth/db.py but referenced here)
+            await conn.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    email VARCHAR(100) UNIQUE NOT NULL,
+                    full_name VARCHAR(100),
+                    hashed_password VARCHAR(255) NOT NULL,
+                    disabled BOOLEAN DEFAULT FALSE,
+                    tinkoff_token VARCHAR(1000),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             await conn.execute('''
                 CREATE TABLE IF NOT EXISTS alphas (
                     id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     alpha TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -43,17 +70,20 @@ class Database:
                 CREATE TABLE IF NOT EXISTS figis (
                     id SERIAL PRIMARY KEY,
                     figi TEXT NOT NULL UNIQUE,
+                    ticker TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
 
                 CREATE TABLE IF NOT EXISTS forward_tests (
                     id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
                     account_id TEXT NOT NULL,
-                    alpha_id INTEGER REFERENCES alphas(id),
+                    alpha_id INTEGER NOT NULL REFERENCES alphas(id) ON DELETE RESTRICT,
                     datetime_start TIMESTAMP NOT NULL,
                     datetime_end TIMESTAMP,
                     is_running BOOLEAN DEFAULT TRUE,
+                    last_execution_date DATE,
+                    trade_on_weekends BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(user_id, account_id)
                 );
@@ -105,15 +135,15 @@ class Database:
             return result.split()[-1] == '1'
 
     # FIGI related methods
-    async def upsert_figi(self, figi: str) -> int:
+    async def upsert_figi(self, figi: str, ticker: str) -> int:
         async with self.pool.acquire() as conn:
             return await conn.fetchval('''
-                INSERT INTO figis (figi)
-                VALUES ($1)
+                INSERT INTO figis (figi, ticker)
+                VALUES ($1, $2)
                 ON CONFLICT (figi) 
-                DO UPDATE SET figi = EXCLUDED.figi
+                DO UPDATE SET ticker = EXCLUDED.ticker
                 RETURNING id
-            ''', figi)
+            ''', figi, ticker)
 
     async def get_figi_by_id(self, figi_id: int) -> Optional[Dict[str, Any]]:
         async with self.pool.acquire() as conn:
@@ -121,15 +151,15 @@ class Database:
             return dict(row) if row else None
 
     # Forward test related methods
-    async def create_forward_test(self, user_id: int, account_id: str, alpha_id: int, figi_ids: List[int]) -> int:
+    async def create_forward_test(self, user_id: int, account_id: str, alpha_id: int, figi_ids: List[int], trade_on_weekends: bool = False) -> int:
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 # Create forward test entry
                 forward_test_id = await conn.fetchval('''
-                    INSERT INTO forward_tests (user_id, account_id, alpha_id, datetime_start)
-                    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                    INSERT INTO forward_tests (user_id, account_id, alpha_id, datetime_start, trade_on_weekends)
+                    VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)
                     RETURNING id
-                ''', user_id, account_id, alpha_id)
+                ''', user_id, account_id, alpha_id, trade_on_weekends)
 
                 # Create forward test FIGI connections
                 await conn.executemany('''
@@ -187,22 +217,34 @@ class Database:
             ''', user_id, account_id)
             return dict(row) if row else None
 
-    async def update_forward_test_state(self, forward_test_id: int, positions: Dict[str, int], total_value: float) -> bool:
+    async def get_all_active_forward_tests(self) -> List[Dict[str, Any]]:
+        """Get all active forward tests with their alphas and figis that haven't been executed today"""
         async with self.pool.acquire() as conn:
-            result = await conn.execute('''
-                UPDATE forward_tests 
-                SET positions = $1, total_value = $2, last_position_update = CURRENT_TIMESTAMP
-                WHERE id = $3
-            ''', positions, total_value, forward_test_id)
-            return result.split()[-1] == '1'
+            rows = await conn.fetch('''
+                SELECT 
+                    ft.*,
+                    a.alpha,
+                    array_agg(f.*) as figis
+                FROM forward_tests ft
+                JOIN alphas a ON ft.alpha_id = a.id
+                LEFT JOIN forward_test_figis ftf ON ft.id = ftf.forward_test_id
+                LEFT JOIN figis f ON ftf.figi_id = f.id
+                WHERE ft.is_running = TRUE
+                AND ft.datetime_end IS NULL
+                AND (ft.last_execution_date IS NULL OR ft.last_execution_date < CURRENT_DATE)
+                GROUP BY ft.id, a.alpha
+                ORDER BY ft.datetime_start DESC
+            ''')
+            return [dict(row) for row in rows]
 
-    async def update_forward_test_error(self, forward_test_id: int, error: str) -> bool:
+    async def update_last_execution_date(self, forward_test_id: int, execution_date: datetime.date) -> bool:
+        """Update the last execution date for a forward test"""
         async with self.pool.acquire() as conn:
             result = await conn.execute('''
                 UPDATE forward_tests 
-                SET last_error = $1
+                SET last_execution_date = $1
                 WHERE id = $2
-            ''', error, forward_test_id)
+            ''', execution_date, forward_test_id)
             return result.split()[-1] == '1'
 
     async def close(self):

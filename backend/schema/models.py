@@ -18,6 +18,7 @@ class BacktestRequest(BaseModel):
     alpha_id: int
     start_date: datetime
     end_date: datetime
+    commission_percent: float
 
 class BacktestResult(BaseModel):
     instrument: str
