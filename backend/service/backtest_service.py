@@ -65,7 +65,7 @@ class BacktestService:
             
         # Calculate alpha signals
         signals = self._calculate_alpha_signals(portfolio_data, request['expression'])
-        # signals = neutralize_weights(signals)
+        signals = neutralize_weights(signals)
 
         logger.info(f"Signals: {signals}")
         
