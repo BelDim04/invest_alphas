@@ -112,7 +112,7 @@ async def start_forward_test(
             logger.error(f"Error closing sandbox account {account_id}: {close_error}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/stop")
+@router.put("/stop")
 @handle_errors
 async def stop_forward_test(
     account_id: str = Query(..., description="ID of the account to stop forward testing"),

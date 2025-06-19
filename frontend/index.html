@@ -834,7 +834,7 @@
 
                 async stopForwardTest(accountId, forwardTestId) {
                     const result = await this.safeFetch(`/api/v1/forward/stop?account_id=${accountId}`, {
-                        method: 'POST'
+                        method: 'PUT'
                     });
                     if (!result.error) {
                         await this.loadActiveForwardTests();
@@ -938,7 +938,7 @@
                     this.tokenUpdateError = '';
 
                     const result = await this.safeFetch('/api/v1/auth/tinkoff', {
-                        method: 'POST',
+                        method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                         },

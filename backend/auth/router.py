@@ -237,7 +237,7 @@ async def delete_user(
     return {"message": "User deleted successfully"}
 
 # Update Tinkoff API token
-@router.post("/tinkoff", response_model=dict)
+@router.put("/tinkoff", response_model=dict)
 @handle_errors
 async def update_tinkoff_token(
     token_update: TinkoffTokenUpdate,

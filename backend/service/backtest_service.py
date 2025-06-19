@@ -65,6 +65,11 @@ class BacktestService:
             
         # Calculate alpha signals
         signals = self._calculate_alpha_signals(portfolio_data, request['expression'])
+        
+        # Check if all signals are NaN
+        if signals.isna().all().all():
+            raise ValueError("All calculated signals are NaN. Please check your expression.")
+            
         signals = neutralize_weights(signals)
 
         logger.info(f"Signals: {signals}")
@@ -134,7 +139,7 @@ class BacktestService:
             benchmark=benchmark_returns,
             benchmark_title=benchmark_title,
             output=report_path,
-            title=f"Backtest Report - {request.get('expression', 'Alpha Strategy')} {request.get('instruments', '')}",
+            title=f"Backtest Report: {request.get('expression', 'Alpha Strategy')} {request.get('instruments', '')}",
             download_filename=report_filename,
             rf=rf_rate
         )
@@ -173,7 +178,7 @@ class BacktestService:
                 alpha_expr = self.parser.parse(expression)
                 signals[ticker] = alpha_expr.evaluate(context)
             except Exception as e:
-                print(f"Error calculating alpha for {ticker}: {e}")
+                logger.error(f"Error calculating alpha for {ticker}: {e}")
                 signals[ticker] = 0
                 
         return signals

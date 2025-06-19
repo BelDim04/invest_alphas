@@ -1,0 +1,1429 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Investment Alphas testing API",
+    "description": "API for testing trading alphas",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/instruments": {
+      "get": {
+        "tags": [
+          "common"
+        ],
+        "summary": "Get Instruments",
+        "description": "Get available instruments for trading",
+        "operationId": "get_instruments_api_v1_instruments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Instrument"
+                  },
+                  "type": "array",
+                  "title": "Response Get Instruments Api V1 Instruments Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "backtest:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/token": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login For Access Token",
+        "description": "Authenticate user and return JWT token",
+        "operationId": "login_for_access_token_api_v1_auth_token_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_for_access_token_api_v1_auth_token_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register New User",
+        "description": "Register a new user",
+        "operationId": "register_new_user_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Register New User Api V1 Auth Register Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Read Users Me",
+        "description": "Get current user info",
+        "operationId": "read_users_me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Read Users Me Api V1 Auth Me Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "users:read"
+            ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update User Me",
+        "description": "Update current user info",
+        "operationId": "update_user_me_api_v1_auth_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Update User Me Api V1 Auth Me Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "users:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/users": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "List Users",
+        "description": "List all users (admin only)",
+        "operationId": "list_users_api_v1_auth_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Users Api V1 Auth Users Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "users:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/users/{user_id}": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get User",
+        "description": "Get user by ID (admin only)",
+        "operationId": "get_user_api_v1_auth_users__user_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "users:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get User Api V1 Auth Users  User Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update User",
+        "description": "Update any user (admin only)",
+        "operationId": "update_user_api_v1_auth_users__user_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "users:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update User Api V1 Auth Users  User Id  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Delete User",
+        "description": "Delete a user (admin only)",
+        "operationId": "delete_user_api_v1_auth_users__user_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "users:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete User Api V1 Auth Users  User Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/tinkoff": {
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Tinkoff Token",
+        "description": "Update the Tinkoff API token for the current user",
+        "operationId": "update_tinkoff_token_api_v1_auth_tinkoff_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TinkoffTokenUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Update Tinkoff Token Api V1 Auth Tinkoff Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/alphas/": {
+      "get": {
+        "tags": [
+          "alphas"
+        ],
+        "summary": "Get All Alphas",
+        "operationId": "get_all_alphas_api_v1_alphas__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlphaListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "alphas:read"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "alphas"
+        ],
+        "summary": "Create Alpha",
+        "operationId": "create_alpha_api_v1_alphas__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlphaCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlphaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "alphas:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/alphas/{alpha_id}": {
+      "get": {
+        "tags": [
+          "alphas"
+        ],
+        "summary": "Get Alpha",
+        "operationId": "get_alpha_api_v1_alphas__alpha_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "alphas:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alpha_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Alpha Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlphaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "alphas"
+        ],
+        "summary": "Update Alpha",
+        "operationId": "update_alpha_api_v1_alphas__alpha_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "alphas:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alpha_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Alpha Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlphaUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlphaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "alphas"
+        ],
+        "summary": "Delete Alpha",
+        "operationId": "delete_alpha_api_v1_alphas__alpha_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "alphas:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alpha_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Alpha Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlphaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backtest/": {
+      "post": {
+        "tags": [
+          "backtest"
+        ],
+        "summary": "Backtest Alpha",
+        "description": "Run backtest for selected instruments",
+        "operationId": "backtest_alpha_api_v1_backtest__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacktestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "backtest:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/forward/start": {
+      "post": {
+        "tags": [
+          "forward"
+        ],
+        "summary": "Start Forward Test",
+        "description": "Initialize a new forward test",
+        "operationId": "start_forward_test_api_v1_forward_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForwardTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "forward:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/api/v1/forward/stop": {
+      "put": {
+        "tags": [
+          "forward"
+        ],
+        "summary": "Stop Forward Test",
+        "description": "Stop forward testing for an account",
+        "operationId": "stop_forward_test_api_v1_forward_stop_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "forward:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID of the account to stop forward testing",
+              "title": "Account Id"
+            },
+            "description": "ID of the account to stop forward testing"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forward/history/{account_id}": {
+      "get": {
+        "tags": [
+          "forward"
+        ],
+        "summary": "Get Forward Test History",
+        "description": "Get portfolio value history for a forward test",
+        "operationId": "get_forward_test_history_api_v1_forward_history__account_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "forward:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forward/active": {
+      "get": {
+        "tags": [
+          "forward"
+        ],
+        "summary": "List Active Forward Tests",
+        "description": "List all active forward tests for the current user",
+        "operationId": "list_active_forward_tests_api_v1_forward_active_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "forward:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AlphaCreate": {
+        "properties": {
+          "alpha": {
+            "type": "string",
+            "title": "Alpha",
+            "description": "Alpha expression formula"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alpha"
+        ],
+        "title": "AlphaCreate"
+      },
+      "AlphaListResponse": {
+        "properties": {
+          "alphas": {
+            "items": {
+              "$ref": "#/components/schemas/AlphaResponse"
+            },
+            "type": "array",
+            "title": "Alphas",
+            "description": "List of alpha expressions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alphas"
+        ],
+        "title": "AlphaListResponse"
+      },
+      "AlphaResponse": {
+        "properties": {
+          "alpha": {
+            "type": "string",
+            "title": "Alpha",
+            "description": "Alpha expression formula"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique identifier of the alpha"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp when the alpha was created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alpha",
+          "id",
+          "created_at"
+        ],
+        "title": "AlphaResponse"
+      },
+      "AlphaUpdate": {
+        "properties": {
+          "alpha": {
+            "type": "string",
+            "title": "Alpha",
+            "description": "Alpha expression formula"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alpha"
+        ],
+        "title": "AlphaUpdate"
+      },
+      "BacktestRequest": {
+        "properties": {
+          "instruments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Instruments",
+            "description": "List of instrument tickers to backtest"
+          },
+          "alpha_id": {
+            "type": "integer",
+            "title": "Alpha Id",
+            "description": "ID of the alpha to use in backtest"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Date",
+            "description": "Start date for the backtest period"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Date",
+            "description": "End date for the backtest period"
+          },
+          "commission_percent": {
+            "type": "number",
+            "title": "Commission Percent",
+            "description": "Commission percentage to apply in calculations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instruments",
+          "alpha_id",
+          "start_date",
+          "end_date",
+          "commission_percent"
+        ],
+        "title": "BacktestRequest"
+      },
+      "Body_login_for_access_token_api_v1_auth_token_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^password$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_for_access_token_api_v1_auth_token_post"
+      },
+      "ForwardTestRequest": {
+        "properties": {
+          "instruments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Instruments",
+            "description": "List of instrument tickers to use in forward test"
+          },
+          "alpha_id": {
+            "type": "integer",
+            "title": "Alpha Id",
+            "description": "ID of the alpha to use in forward test"
+          },
+          "trade_on_weekends": {
+            "type": "boolean",
+            "title": "Trade On Weekends",
+            "description": "Whether to trade on weekends",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "instruments",
+          "alpha_id"
+        ],
+        "title": "ForwardTestRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Instrument": {
+        "properties": {
+          "figi": {
+            "type": "string",
+            "title": "Figi",
+            "description": "Financial Instrument Global Identifier"
+          },
+          "ticker": {
+            "type": "string",
+            "title": "Ticker",
+            "description": "Trading ticker symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Full name of the instrument"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "Currency of the instrument"
+          },
+          "real_exchange": {
+            "$ref": "#/components/schemas/RealExchange",
+            "description": "Exchange where the instrument is traded"
+          },
+          "liquidity_flag": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Flag",
+            "description": "Flag indicating if the instrument has good liquidity"
+          },
+          "basic_asset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basic Asset",
+            "description": "Underlying asset for derivative instruments"
+          },
+          "lot_size": {
+            "type": "integer",
+            "title": "Lot Size",
+            "description": "Minimum trading lot size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "figi",
+          "ticker",
+          "name",
+          "currency",
+          "real_exchange",
+          "lot_size"
+        ],
+        "title": "Instrument"
+      },
+      "RealExchange": {
+        "type": "integer",
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "title": "RealExchange"
+      },
+      "TinkoffTokenUpdate": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "TinkoffTokenUpdate"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type"
+        ],
+        "title": "Token"
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "disabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled",
+            "default": false
+          },
+          "tinkoff_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tinkoff Token"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserUpdate": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "disabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "tinkoff_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tinkoff Token"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {
+              "users:read": "Read information about users",
+              "users:write": "Create, update, and delete users",
+              "alphas:read": "Read information about trading alphas",
+              "alphas:write": "Create, update, and delete trading alphas",
+              "backtest:read": "View backtest results",
+              "backtest:write": "Run backtests",
+              "forward:read": "View forward test results",
+              "forward:write": "Run forward tests"
+            },
+            "tokenUrl": "api/v1/auth/token"
+          }
+        }
+      }
+    }
+  }
+}

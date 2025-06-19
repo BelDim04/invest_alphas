@@ -31,8 +31,8 @@ async def lifespan(app: FastAPI):
     await db.close()
 
 app = FastAPI(
-    title="Investment Alphas Backtesting API",
-    description="API for backtesting trading alphas",
+    title="Investment Alphas testing API",
+    description="API for testing trading alphas",
     version="1.0.0",
     lifespan=lifespan
 )

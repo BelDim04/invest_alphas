@@ -137,25 +137,72 @@ class TinkoffClient:
 
     async def get_stock_data(self, figi: str, from_date: datetime, to_date: datetime, 
                       interval: CandleInterval = CandleInterval.CANDLE_INTERVAL_DAY) -> pd.DataFrame:
-        """Get historical stock data for a given FIGI"""
+        """
+        Get historical stock data for a given FIGI.
+        For large date ranges, breaks the request into chunks of 100 days each.
+        """
+        # Maximum number of days per request to avoid API limitations
+        MAX_DAYS_PER_REQUEST = 1000
+        all_candles_df = pd.DataFrame()
+        
+        # Calculate total days in the requested range
+        total_days = (to_date - from_date).days
+        
+        if total_days <= MAX_DAYS_PER_REQUEST:
+            # If the range is small enough, make a single request
+            return await self._get_stock_data_chunk(figi, from_date, to_date, interval)
+        else:
+            # Break the request into chunks
+            current_from = from_date
+            while current_from < to_date:
+                # Calculate the end date for this chunk
+                current_to = min(current_from + timedelta(days=MAX_DAYS_PER_REQUEST), to_date)
+                
+                # Get data for this chunk
+                chunk_df = await self._get_stock_data_chunk(figi, current_from, current_to, interval)
+                
+                # Append to the result
+                if not chunk_df.empty:
+                    all_candles_df = pd.concat([all_candles_df, chunk_df])
+                
+                # Move to the next chunk
+                current_from = current_to
+        
+        # Remove potential duplicates and sort by time
+        if not all_candles_df.empty:
+            all_candles_df = all_candles_df.drop_duplicates(subset=['time'])
+            all_candles_df = all_candles_df.sort_values('time')
+            
+        return all_candles_df
+        
+    async def _get_stock_data_chunk(self, figi: str, from_date: datetime, to_date: datetime, 
+                           interval: CandleInterval) -> pd.DataFrame:
+        """Helper method to get stock data for a specific date range chunk"""
         async with AsyncSandboxClient(self.token) as client:
-            candles = await client.market_data.get_candles(
-                figi=figi,
-                from_=from_date,
-                to=to_date,
-                interval=interval
-            )
-            
-            df = pd.DataFrame([{
-                'time': c.time,
-                'open': c.open.units + c.open.nano / 1e9,
-                'high': c.high.units + c.high.nano / 1e9,
-                'low': c.low.units + c.low.nano / 1e9,
-                'close': c.close.units + c.close.nano / 1e9,
-                'volume': c.volume
-            } for c in candles.candles])
-            
-            return df
+            try:
+                candles = await client.market_data.get_candles(
+                    figi=figi,
+                    from_=from_date,
+                    to=to_date,
+                    interval=interval
+                )
+                
+                if not candles.candles:
+                    return pd.DataFrame()
+                    
+                df = pd.DataFrame([{
+                    'time': c.time,
+                    'open': c.open.units + c.open.nano / 1e9,
+                    'high': c.high.units + c.high.nano / 1e9,
+                    'low': c.low.units + c.low.nano / 1e9,
+                    'close': c.close.units + c.close.nano / 1e9,
+                    'volume': c.volume
+                } for c in candles.candles])
+                
+                return df
+            except Exception as e:
+                logger.error(f"Error getting candles for {figi} from {from_date} to {to_date}: {str(e)}")
+                return pd.DataFrame()
 
     async def get_portfolio(self, account_id: str) -> PortfolioResponse:
         """Get current portfolio for a specific account"""
